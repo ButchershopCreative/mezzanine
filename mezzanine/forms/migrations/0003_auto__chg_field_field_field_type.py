@@ -24,6 +24,7 @@ class Migration(SchemaMigration):
 
 
     def backwards(self, orm):
+
         if not db.dry_run:
             data = list(orm['forms.Field'].objects.values_list('id', 'field_type'))
 
