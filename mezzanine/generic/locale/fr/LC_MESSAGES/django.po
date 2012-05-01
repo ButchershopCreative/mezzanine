@@ -121,7 +121,7 @@ msgstr "Pas de commentaires actuellement."
 
 #: templates/generic/includes/comments.html:16
 msgid "New Comment"
-msgstr "Nouveau commentaire"
+msgstr ""
 
 #: templates/generic/includes/rating.html:7
 msgid "Current rating"

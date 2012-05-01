@@ -11,30 +11,26 @@ class Migration(SchemaMigration):
         # Postgres throws error if trying to cast from varchar to integer field,
         # so we convert in Python. Should be OK since Field table is unlikely to
         # have many records.
-        if not db.dry_run:
-            data = list(orm['forms.Field'].objects.values_list('id', 'field_type'))
+        data = list(orm['forms.Field'].objects.values_list('id', 'field_type'))
 
         db.delete_column('forms_field', 'field_type')
         db.add_column('forms_field', 'field_type', self.gf('django.db.models.fields.IntegerField')(null=True))
 
-        if not db.dry_run:
-            for pk, field_type in data:
-                orm['forms.Field'].objects.filter(id=pk).update(field_type=int(field_type))
+        for pk, field_type in data:
+            orm['forms.Field'].objects.filter(id=pk).update(field_type=int(field_type))
 
         db.alter_column('forms_field', 'field_type', self.gf('django.db.models.fields.IntegerField')())
 
 
     def backwards(self, orm):
 
-        if not db.dry_run:
-            data = list(orm['forms.Field'].objects.values_list('id', 'field_type'))
+        data = list(orm['forms.Field'].objects.values_list('id', 'field_type'))
 
         db.delete_column('forms_field', 'field_type')
         db.add_column('forms_field', 'field_type', self.gf('django.db.models.fields.CharField')(max_length=55, null=True))
 
-        if not db.dry_run:
-            for pk, field_type in data:
-                orm['forms.Field'].objects.filter(id=pk).update(field_type=str(field_type))
+        for pk, field_type in data:
+            orm['forms.Field'].objects.filter(id=pk).update(field_type=str(field_type))
 
         db.alter_column('forms_field', 'field_type', self.gf('django.db.models.fields.CharField')(max_length=55))
 

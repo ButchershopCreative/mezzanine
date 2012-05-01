@@ -18,16 +18,7 @@ from mezzanine.conf import register_setting
 
 register_setting(
     name="ACCOUNTS_ENABLED",
-    description="If ``True``, users can create an account.",
-    editable=False,
-    default=False,
-)
-
-register_setting(
-    name="ACCOUNTS_VERIFICATION_REQUIRED",
-    description="If ``True``, when users create an account, they will be "
-        "sent an email with a verification link, which they must click to "
-        "enable their account.",
+    description="If True, users can create an account.",
     editable=False,
     default=False,
 )
@@ -54,7 +45,7 @@ register_setting(
 register_setting(
     name="BLOG_BITLY_USER",
     label=_("bit.ly username"),
-    description=_("Username for http://bit.ly URL shortening service."),
+    description=_("Username for bit.ly URL shortening service."),
     editable=True,
     default="",
 )
@@ -62,7 +53,7 @@ register_setting(
 register_setting(
     name="BLOG_BITLY_KEY",
     label=_("bit.ly key"),
-    description=_("Key for http://bit.ly URL shortening service."),
+    description=_("Key for bit.ly URL shortening service."),
     editable=True,
     default="",
 )
@@ -99,23 +90,6 @@ register_setting(
 )
 
 register_setting(
-    name="COMMENTS_ACCOUNT_REQUIRED",
-    label=_("Accounts required for commenting"),
-    description="If ``True``, users must log in to comment.",
-    editable=True,
-    default=False,
-)
-
-register_setting(
-    name="AKISMET_API_KEY",
-    label=_("Akismet API Key"),
-    description=_("Key for http://akismet.com spam filtering service. Used "
-        "for filtering comments and forms."),
-    editable=True,
-    default="",
-)
-
-register_setting(
     name="COMMENTS_DISQUS_SHORTNAME",
     label=_("Disqus shortname"),
     description=_("Shortname for the http://disqus.com comments service."),
@@ -126,7 +100,7 @@ register_setting(
 register_setting(
     name="COMMENTS_DISQUS_API_PUBLIC_KEY",
     label=_("Disqus public key"),
-    description=_("Public key for http://disqus.com developer API"),
+    description=_("Public key for Disqus developer API"),
     editable=True,
     default="",
 )
@@ -134,7 +108,7 @@ register_setting(
 register_setting(
     name="COMMENTS_DISQUS_API_SECRET_KEY",
     label=_("Disqus secret key"),
-    description=_("Secret key for http://disqus.com developer API"),
+    description=_("Secret key for Disqus developer API"),
     editable=True,
     default="",
 )
@@ -265,7 +239,8 @@ register_setting(
 
 register_setting(
     name="FORMS_USE_HTML5",
-    description=_("If ``True``, website forms will use HTML5 features."),
+    description=_("If ``True``, website forms created by the forms app will "
+        "use HTML5 features."),
     editable=False,
     default=False,
 )
@@ -356,6 +331,40 @@ register_setting(
 )
 
 register_setting(
+    name="RICHTEXT_ALLOWED_TAGS",
+    description=_("List of HTML tags that won't be stripped from "
+        "``RichTextField`` instances."),
+    editable=False,
+    default=("a", "abbr", "acronym", "address", "area", "b", "bdo", "big",
+        "blockquote", "br", "button", "caption", "center", "cite", "code",
+        "col", "colgroup", "dd", "del", "dfn", "dir", "div", "dl", "dt",
+        "em", "fieldset", "font", "form", "h1", "h2", "h3", "h4", "h5",
+        "h6", "hr", "i", "img", "input", "ins", "kbd", "label", "legend",
+        "li", "map", "menu", "ol", "optgroup", "option", "p", "pre", "q",
+        "s", "samp", "select", "small", "span", "strike", "strong", "sub",
+        "sup", "table", "tbody", "td", "textarea", "tfoot", "th", "thead",
+        "tr", "tt", "u", "ul", "var", "wbr"),
+)
+
+register_setting(
+    name="RICHTEXT_ALLOWED_ATTRIBUTES",
+    description=_("List of HTML attributes that won't be stripped from "
+        "``RichTextField`` instances."),
+    editable=False,
+    default=("abbr", "accept", "accept-charset", "accesskey", "action",
+        "align", "alt", "axis", "border", "cellpadding", "cellspacing",
+        "char", "charoff", "charset", "checked", "cite", "class", "clear",
+        "cols", "colspan", "color", "compact", "coords", "datetime", "dir",
+        "disabled", "enctype", "for", "frame", "headers", "height", "href",
+        "hreflang", "hspace", "id", "ismap", "label", "lang", "longdesc",
+        "maxlength", "media", "method", "multiple", "name", "nohref",
+        "noshade", "nowrap", "prompt", "readonly", "rel", "rev", "rows",
+        "rowspan", "rules", "scope", "selected", "shape", "size", "span",
+        "src", "start", "style", "summary", "tabindex", "target", "title",
+        "type", "usemap", "valign", "value", "vspace", "width", "xml:lang"),
+)
+
+register_setting(
     name="RICHTEXT_FILTER",
     description=_("Dotted path to the function to call on a ``RichTextField`` "
         "value before it is rendered to the template."),
@@ -386,17 +395,6 @@ register_setting(
     description=_("A tag line that will appear at the top of all pages."),
     editable=True,
     default=_("An open source content management platform."),
-)
-
-register_setting(
-    name="SLUGIFY",
-    description=_("Dotted Python path to the callable for converting "
-        "strings into URL slugs. Defaults to "
-        "``mezzanine.utils.urls.slugify_unicode`` which allows for non-ascii "
-        "URLS. Change to ``django.template.defaultfilters.slugify`` to use "
-        "Django's slugify function, or something of your own if required."),
-    editable=False,
-    default="mezzanine.utils.urls.slugify_unicode",
 )
 
 register_setting(

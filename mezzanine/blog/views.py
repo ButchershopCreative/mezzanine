@@ -45,8 +45,7 @@ def blog_post_list(request, tag=None, year=None, month=None, username=None,
     if category is not None:
         category = get_object_or_404(BlogCategory, slug=category)
         blog_posts = blog_posts.filter(categories=category)
-        templates.append(u"blog/blog_post_list_%s.html" %
-                          unicode(category.slug))
+        templates.append(u"blog/blog_post_list_%s.html" % category.slug)
     author = None
     if username is not None:
         author = get_object_or_404(User, username=username)
@@ -54,9 +53,7 @@ def blog_post_list(request, tag=None, year=None, month=None, username=None,
         templates.append(u"blog/blog_post_list_%s.html" % username)
     # Create dicts mapping blog post IDs to lists of categories and
     # keywords, and assign these to each blog post, to avoid querying
-    # the database inside the template loop for posts. This can be
-    # replaced with prefetch_related once Django 1.3 support is
-    # dropped.
+    # the database inside the template loop for posts.
     blog_posts = list(blog_posts.select_related("user"))
     categories = defaultdict(list)
     if blog_posts:
@@ -89,12 +86,14 @@ def blog_post_list(request, tag=None, year=None, month=None, username=None,
 
 def blog_post_detail(request, slug, year=None, month=None,
                      template="blog/blog_post_detail.html"):
-    """. Custom templates are checked for using the name
+    """
+    Display a blog post and handle comment submission. Custom
+    templates are checked for using the name
     ``blog/blog_post_detail_XXX.html`` where ``XXX`` is the blog
     posts's slug.
     """
     blog_posts = BlogPost.objects.published(for_user=request.user)
     blog_post = get_object_or_404(blog_posts, slug=slug)
     context = {"blog_page": blog_page(), "blog_post": blog_post}
-    templates = [u"blog/blog_post_detail_%s.html" % unicode(slug), template]
+    templates = [u"blog/blog_post_detail_%s.html" % slug, template]
     return render(request, templates, context)

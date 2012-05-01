@@ -85,10 +85,6 @@ class MetaData(models.Model):
     """
 
     description = models.TextField(_("Description"), blank=True)
-    gen_description = models.BooleanField(_("Generate description"),
-        help_text=_("If checked, the description will be automatically "
-                    "generated from content. Uncheck if you want to manually "
-                    "set a custom description."), default=True)
     keywords = KeywordsField(verbose_name=_("Keywords"))
 
     class Meta:
@@ -98,8 +94,7 @@ class MetaData(models.Model):
         """
         Set the description field on save.
         """
-        if self.gen_description:
-            self.description = strip_tags(self.description_from_content())
+        self.description = strip_tags(self.description_from_content())
         super(MetaData, self).save(*args, **kwargs)
 
     def description_from_content(self):
