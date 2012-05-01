@@ -13,14 +13,16 @@ class Migration(SchemaMigration):
         db.add_column('generic_assignedkeyword', 'object_pk_migrating', self.gf('django.db.models.fields.IntegerField')(null=True))
 
         # Migrating field 'Rating.object_pk'
-        for item in orm.Rating.objects.all():
-            item.object_pk_migrating = int(item.object_pk)
-            item.save()
+        if not db.dry_run:
+            for item in orm.Rating.objects.all():
+                item.object_pk_migrating = int(item.object_pk)
+                item.save()
 
         # Migrating field 'AssignedKeyword.object_pk'
-        for item in orm.AssignedKeyword.objects.all():
-            item.object_pk_migrating = int(item.object_pk)
-            item.save()
+        if not db.dry_run:
+            for item in orm.AssignedKeyword.objects.all():
+                item.object_pk_migrating = int(item.object_pk)
+                item.save()
 
         # Changing field 'Rating.object_pk'
         db.delete_column('generic_rating', 'object_pk')
@@ -38,14 +40,16 @@ class Migration(SchemaMigration):
         db.add_column('generic_assignedkeyword', 'object_pk_migrating', self.gf('django.db.models.fields.TextField')())
 
         # Migrating field 'Rating.object_pk'
-        for item in orm.Rating.objects.all():
-            item.object_pk_migrating = str(item.object_pk)
-            item.save()
+        if not db.dry_run:
+            for item in orm.Rating.objects.all():
+                item.object_pk_migrating = str(item.object_pk)
+                item.save()
 
         # Migrating field 'AssignedKeyword.object_pk'
-        for item in orm.AssignedKeyword.objects.all():
-            item.object_pk_migrating = str(item.object_pk)
-            item.save()
+        if not db.dry_run:
+            for item in orm.AssignedKeyword.objects.all():
+                item.object_pk_migrating = str(item.object_pk)
+                item.save()
 
         # Changing field 'Rating.object_pk'
         db.delete_column('generic_rating', 'object_pk')
