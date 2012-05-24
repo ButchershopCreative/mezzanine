@@ -41,28 +41,29 @@ def keywords_for(*args):
     # Handle a model class.
     try:
         app_label, model = args[0].split(".", 1)
+        content_type = ContentType.objects.get(app_label=app_label, model=model)
+        assigned = AssignedKeyword.objects.filter(content_type=content_type)
+        keywords = Keyword.objects.filter(assignments__in=assigned)
+        keywords = keywords.annotate(item_count=Count("assignments"))
+        if not keywords:
+            return []
+        settings.use_editable()
+        counts = [keyword.item_count for keyword in keywords]
+        min_count, max_count = min(counts), max(counts)
+        sizes = settings.TAG_CLOUD_SIZES
+        step = (max_count - min_count) / (sizes - 1)
+        if step == 0:
+            steps = [sizes / 2]
+        else:
+            steps = range(min_count, max_count, step)[:sizes]
+        for keyword in keywords:
+            c = keyword.item_count
+            diff = min([(abs(s - c), (s - c)) for s in steps])[1]
+            keyword.weight = steps.index(c + diff) + 1
+        return keywords
     except ValueError:
-        error = ("The first argument `%s` given for the keywords_for tag "
-                 "must be either a model instance or a model class in the "
-                 "format: app_name.model_name" % args[0])
-        raise TemplateSyntaxError(error)
-    content_type = ContentType.objects.get(app_label=app_label, model=model)
-    assigned = AssignedKeyword.objects.filter(content_type=content_type)
-    keywords = Keyword.objects.filter(assignments__in=assigned)
-    keywords = keywords.annotate(item_count=Count("assignments"))
-    if not keywords:
+        # error = ("The first argument `%s` given for the keywords_for tag "
+        #          "must be either a model instance or a model class in the "
+        #          "format: app_name.model_name" % args[0])
+        # raise TemplateSyntaxError(error)
         return []
-    settings.use_editable()
-    counts = [keyword.item_count for keyword in keywords]
-    min_count, max_count = min(counts), max(counts)
-    sizes = settings.TAG_CLOUD_SIZES
-    step = (max_count - min_count) / (sizes - 1)
-    if step == 0:
-        steps = [sizes / 2]
-    else:
-        steps = range(min_count, max_count, step)[:sizes]
-    for keyword in keywords:
-        c = keyword.item_count
-        diff = min([(abs(s - c), (s - c)) for s in steps])[1]
-        keyword.weight = steps.index(c + diff) + 1
-    return keywords

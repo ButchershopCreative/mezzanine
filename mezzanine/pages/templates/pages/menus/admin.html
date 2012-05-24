@@ -1,3 +1,4 @@
+
 {% load pages_tags i18n adminmedia %}
 
 <ul>
@@ -41,7 +42,11 @@
 
         </div>
         <br clear="all" />
+        {% if page.has_children %}
         {% page_menu page %}
+        {% else %}
+        <ul><li id="ordering_-1">&nbsp;</li></ul>
+        {% endif %}
     </li>
     {% endfor %}
 </ul>

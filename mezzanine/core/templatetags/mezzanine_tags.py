@@ -1,19 +1,23 @@
 
 from __future__ import with_statement
+from hashlib import md5
 import os
-from urllib import urlopen, urlencode
+from urllib import urlopen, urlencode, unquote
 
 from django.contrib import admin
 from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.contrib.sites.models import Site
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.db.models import Model
-from django.template import Context, Template
+from django.template import (Context, Node, Template, TemplateSyntaxError,
+                             TOKEN_BLOCK)
 from django.template.loader import get_template
 from django.utils.html import strip_tags
 from django.utils.simplejson import loads
 from django.utils.text import capfirst
+
 from PIL import Image, ImageOps
 
 from mezzanine.conf import settings
@@ -21,12 +25,24 @@ from mezzanine.core.fields import RichTextField
 from mezzanine.core.forms import get_edit_form
 from mezzanine.utils.html import decode_entities
 from mezzanine.utils.importing import import_dotted_path
-from mezzanine.utils.views import is_editable
+from mezzanine.utils.sites import current_site_id
 from mezzanine.utils.urls import admin_url
+from mezzanine.utils.views import is_editable
 from mezzanine import template
 
 
 register = template.Library()
+
+
+if "compressor" in settings.INSTALLED_APPS:
+    @register.tag
+    def compress(parser, token):
+        from compressor.templatetags.compress import compress
+        return compress(parser, token)
+else:
+    @register.to_end_tag
+    def compress(parsed, context, token):
+        return parsed
 
 
 @register.inclusion_tag("includes/form_fields.html", takes_context=True)
@@ -34,7 +50,8 @@ def fields_for(context, form):
     """
     Renders fields for a form.
     """
-    return {"form": form}
+    context["form_for_fields"] = form
+    return context
 
 
 @register.filter
@@ -43,7 +60,48 @@ def is_installed(app_name):
     Returns ``True`` if the given app name is in the
     ``INSTALLED_APPS`` setting.
     """
+    from warnings import warn
+    warn("The is_installed filter is deprecated. Please use the tag "
+         "{% ifinstalled appname %}{% endifinstalled %}")
     return app_name in settings.INSTALLED_APPS
+
+
+@register.tag
+def ifinstalled(parser, token):
+    """
+    Old-style ``if`` tag that renders contents if the given app is
+    installed. The main use case is:
+
+    {% ifinstalled app_name %}
+    {% include "app_name/template.html" %}
+    {% endifinstalled %}
+
+    so we need to manually pull out all tokens if the app isn't
+    installed, since if we used a normal ``if`` tag with a False arg,
+    the include tag will still try and find the template to include.
+    """
+    try:
+        tag, app = token.split_contents()
+    except ValueError:
+        raise TemplateSyntaxError("ifinstalled should be in the form: "
+                                  "{% ifinstalled app_name %}"
+                                  "{% endifinstalled %}")
+
+    end_tag = "end" + tag
+    if app.strip("\"'") not in settings.INSTALLED_APPS:
+        while True:
+            token = parser.tokens.pop(0)
+            if token.token_type == TOKEN_BLOCK and token.contents == end_tag:
+                parser.tokens.insert(0, token)
+                break
+    nodelist = parser.parse((end_tag,))
+    parser.delete_first_token()
+
+    class IfInstalledNode(Node):
+        def render(self, context):
+            return nodelist.render(context)
+
+    return IfInstalledNode()
 
 
 @register.render_tag
@@ -68,6 +126,15 @@ def set_short_url_for(context, token):
                 obj.short_url = response["data"]["url"]
                 obj.save()
     return ""
+
+
+@register.simple_tag
+def gravatar_url(email, size=32):
+    """
+    Return the full URL for a Gravatar given an email hash.
+    """
+    email_hash = md5(email).hexdigest()
+    return "http://www.gravatar.com/avatar/%s?s=%s" % (email_hash, size)
 
 
 @register.to_end_tag
@@ -103,7 +170,7 @@ def thumbnail(image_url, width, height):
     if not image_url:
         return ""
 
-    image_url = unicode(image_url)
+    image_url = unquote(unicode(image_url))
     if image_url.startswith(settings.MEDIA_URL):
         image_url = image_url.replace(settings.MEDIA_URL, "", 1)
     image_dir, image_name = os.path.split(image_url)
@@ -115,13 +182,24 @@ def thumbnail(image_url, width, height):
     if not os.path.exists(thumb_dir):
         os.makedirs(thumb_dir)
     thumb_path = os.path.join(thumb_dir, thumb_name)
-    thumb_url = "%s/%s/%s" % (os.path.dirname(image_url),
-                              settings.THUMBNAILS_DIR_NAME, thumb_name)
+    thumb_url = "%s/%s" % (settings.THUMBNAILS_DIR_NAME, thumb_name)
+    image_url_path = os.path.dirname(image_url)
+    if image_url_path:
+        thumb_url = "%s/%s" % (image_url_path, thumb_url)
 
-    # Abort if thumbnail exists or original image doesn't exist.
-    if os.path.exists(thumb_path):
+    try:
+        thumb_exists = os.path.exists(thumb_path)
+    except UnicodeEncodeError:
+        # The image that was saved to a filesystem with utf-8 support,
+        # but somehow the locale has changed and the filesystem does not
+        # support utf-8.
+        from mezzanine.core.exceptions import FileSystemEncodingChanged
+        raise FileSystemEncodingChanged()
+    if thumb_exists:
+        # Thumbnail exists, don't generate it.
         return thumb_url
     elif not default_storage.exists(image_url):
+        # Requested image does not exist, just return its URL.
         return image_url
 
     image = Image.open(default_storage.open(image_url))
@@ -186,7 +264,7 @@ def editable(parsed, context, token):
     """
     def parse_field(field):
         field = field.split(".")
-        obj = context[field.pop(0)]
+        obj = context.get(field.pop(0))
         attr = field.pop()
         while field:
             obj = getattr(obj, field.pop(0))
@@ -218,6 +296,8 @@ def try_url(url_name):
     names in admin templates as these won't resolve when admin tests are
     running.
     """
+    from warnings import warn
+    warn("try_url is deprecated, use the url tag with the 'as' arg instead.")
     try:
         url = reverse(url_name)
     except NoReverseMatch:
@@ -285,20 +365,23 @@ def admin_app_list(request):
         name = unicode(name)
         for unfound_item in set(items) - found_items:
             if isinstance(unfound_item, (list, tuple)):
-                item_name, item_url = unfound_item[0], try_url(unfound_item[1])
-                if item_url:
-                    if name not in app_dict:
-                        app_dict[name] = {
-                            "index": i,
-                            "name": name,
-                            "models": [],
-                        }
-                    app_dict[name]["models"].append({
-                        "index": items.index(unfound_item),
-                        "perms": {"custom": True},
-                        "name": item_name,
-                        "admin_url": item_url,
-                    })
+                item_name, item_url = unfound_item[0], unfound_item[1]
+                try:
+                    item_url = reverse(item_url)
+                except NoReverseMatch:
+                    continue
+                if name not in app_dict:
+                    app_dict[name] = {
+                        "index": i,
+                        "name": name,
+                        "models": [],
+                    }
+                app_dict[name]["models"].append({
+                    "index": items.index(unfound_item),
+                    "perms": {"custom": True},
+                    "name": item_name,
+                    "admin_url": item_url,
+                })
 
     app_list = app_dict.values()
     sort = lambda x: x["name"] if x["index"] is None else x["index"]
@@ -315,6 +398,8 @@ def admin_dropdown_menu(context):
     Renders the app list for the admin dropdown menu navigation.
     """
     context["dropdown_menu_app_list"] = admin_app_list(context["request"])
+    context["dropdown_menu_sites"] = list(Site.objects.all())
+    context["dropdown_menu_selected_site_id"] = current_site_id()
     return context
 
 
