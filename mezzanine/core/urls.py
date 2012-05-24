@@ -15,16 +15,10 @@ if "django.contrib.admin" in settings.INSTALLED_APPS:
         ("^reset/done/$", "password_reset_complete"),
     )
 
-if getattr(settings, "ACCOUNTS_ENABLED", False):
-    urlpatterns += patterns("mezzanine.core.views",
-        url("^%s$" % settings.LOGIN_URL.lstrip("/"), "account",
-            name="account"),
-        url("^%s$" % settings.LOGOUT_URL.lstrip("/"), "logout",
-            name="logout"),
-    )
-
 urlpatterns += patterns("mezzanine.core.views",
     url("^edit/$", "edit", name="edit"),
     url("^search/$", "search", name="search"),
+    url("^set_site/$", "set_site", name="set_site"),
     url("^set_device/(?P<device>.*)/$", "set_device", name="set_device"),
+    url("^static_proxy/$", "static_proxy", name="static_proxy"),
 )

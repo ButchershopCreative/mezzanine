@@ -2,12 +2,15 @@
 import os
 import sys
 
+from django.conf.global_settings import STATICFILES_FINDERS
+from django.template.loader import add_to_builtins
+
 
 def set_dynamic_settings(s):
     """
-    Called at the end of the project's settings module and is passed
+    Called at the end of the project's settings module, and is passed
     its globals dict for updating with some final tweaks for settings
-    that generally aren't specified but can be given some better
+    that generally aren't specified, but can be given some better
     defaults based on other settings that have been specified. Broken
     out into its own function so that the code need not be replicated
     in the settings modules of other project-based apps that leverage
@@ -20,6 +23,7 @@ def set_dynamic_settings(s):
     append = lambda n, k: s[n].append(k) if k not in s[n] else None
 
     s["TEMPLATE_DEBUG"] = s.get("TEMPLATE_DEBUG", s.get("DEBUG", False))
+    add_to_builtins("mezzanine.template.loader_tags")
     # Define some settings based on management command being run.
     management_command = sys.argv[1] if len(sys.argv) > 1 else ""
     # Some kind of testing is running via test or testserver.
@@ -27,10 +31,11 @@ def set_dynamic_settings(s):
     # Some kind of development server is running via runserver or
     # runserver_plus
     s["DEV_SERVER"] = management_command.startswith("runserver")
-    # Change INSTALLED_APPS and MIDDLEWARE_CLASSES to lists for
-    # easier manipulation.
+    # Change tuple settings to lists for easier manipulation.
     s["INSTALLED_APPS"] = list(s["INSTALLED_APPS"])
     s["MIDDLEWARE_CLASSES"] = list(s["MIDDLEWARE_CLASSES"])
+    s["STATICFILES_FINDERS"] = list(s.get("STATICFILES_FINDERS",
+                                    STATICFILES_FINDERS))
 
     if s["DEV_SERVER"]:
         s["STATICFILES_DIRS"] = list(s.get("STATICFILES_DIRS", []))
@@ -40,8 +45,11 @@ def set_dynamic_settings(s):
     storage = "django.contrib.messages.storage.cookie.CookieStorage"
     s.setdefault("MESSAGE_STORAGE", storage)
 
-    # Setup for optional apps.
-    if not s["TESTING"]:
+    if s["TESTING"]:
+        # Enable accounts when testing so the URLs exist.
+        append("INSTALLED_APPS", "mezzanine.accounts")
+    else:
+        # Setup for optional apps.
         optional = list(s.get("OPTIONAL_APPS", []))
         if s.get("USE_SOUTH"):
             optional.append("south")
@@ -58,6 +66,8 @@ def set_dynamic_settings(s):
     if "debug_toolbar" in s["INSTALLED_APPS"]:
         debug_mw = "debug_toolbar.middleware.DebugToolbarMiddleware"
         append("MIDDLEWARE_CLASSES", debug_mw)
+    if "compressor" in s["INSTALLED_APPS"]:
+        append("STATICFILES_FINDERS", "compressor.finders.CompressorFinder")
 
     # Ensure Grappelli is after Mezzanine in app order so that
     # admin templates are loaded in the correct order.
@@ -106,8 +116,3 @@ def set_dynamic_settings(s):
         elif shortname == "mysql":
             # Required MySQL collation for tests.
             s["DATABASES"][key]["TEST_COLLATION"] = "utf8_general_ci"
-        elif shortname.startswith("postgresql") and not s.get("TIME_ZONE", 1):
-            # Specifying a blank time zone to fall back to the system's
-            # time zone, which will break table creation in Postgres so
-            # remove it.
-            del s["TIME_ZONE"]

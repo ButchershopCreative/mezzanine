@@ -178,6 +178,35 @@ from the subclass model's name is checked for. So given the above example
 the templates ``pages/my-gallery.html`` and ``pages/gallery.html`` would be
 checked for respectively.
 
+Overriding vs Extending Templates
+=================================
+
+A typical problem that reusable Django apps face, is being able to
+extend the app's templates rather than overriding them. The app will
+usually provide templates that the app will look for by name, which
+allows the developer to create their own versions of the templates in
+their project's templates directory. However if the template is
+sufficiently complex, with a good range of extendable template blocks,
+they need to duplicate all of the features of the template within
+their own version. This may cause the project's version of the
+templates to become incompatible as new versions of the upstream app
+become available.
+
+Ideally we would be able to use Django's ``extends`` tag to extend the
+app's template instead, and only override the template blocks we're
+interested in. The problem with this however, is that the app will
+attempt to load the template with a specific name, so we can't override
+*and* extend a template at the same time, as circular inheritance will
+occur, eg Django thinks the template is trying to extend itself, which
+is impossible.
+
+To solve this problem, Mezzanine provides the ``overextends`` template
+tag, which allows you to extend a template with the same name. The
+``overextends`` tag works the same way as Django's ``extends`` tag, (in
+fact it subclasses it), so it must be the first tag in the template.
+What it does differently is that the template using it will be excluded
+from loading when Django searches for the template to extend from.
+
 Page Processors
 ===============
 
@@ -231,22 +260,65 @@ The ``processor_for`` decorator can also be given a ``slug`` argument rather
 than a Page subclass. In this case the Page Processor will be run when the
 exact slug matches the page being viewed.
 
+Non-Page Content
+================
+
+Sometimes you might need to use regular Django applications within your
+site, that fall outside of Mezzanine's page structure. Mezzanine fully
+supports using regular Django applications. All you need to do is add
+the app's urlpatterns to your project's ``urls.py`` module. Mezzanine's
+blog application for example, does not use ``Page`` content types, and
+is just a regular Django app.
+
+Mezzanine provides some helpers for your Django apps to integrate more
+closely with Mezzanine.
+
 The ``Displayable`` Model
-=========================
+-------------------------
 
 The abstract model ``mezzanine.core.models.Displayable`` and associated
 manager ``mezzanine.core.managers.PublishedManager`` provide common features
 for items that can be displayed on the site with their own URLs (also known
-as slugs). Some of these features are:
+as slugs). Mezzanine's ``Page`` model subclasses it. Some of its features are:
 
-  * Fields for title and WYSIWYG edited content.
+  * Meta data such as a title, description and keywords.
   * Auto-generated slug from the title.
   * Draft/published status with the ability to preview drafts.
   * Pre-dated publishing.
-  * Meta data.
+  * Searchable by Mezzanine's :doc:`search-engine`.
 
-Content models that do not inherit from the ``Page`` model described earlier
-should inherit from the ``Displayable`` model if any of the above features
+Models that do not inherit from the ``Page`` model described earlier
+should subclass the ``Displayable`` model if any of the above features
 are required. An example of this can be found in the ``mezzanine.blog``
 application, where ``BlogPost`` instances contain their own URLs and views
 that fall outside of the regular URL/view structure of the ``Page`` model.
+
+Navigation Integration
+----------------------
+
+A common requirement when using regular Django apps with Mezzanine is for
+pages in the site's navigation to point to the urlpatterns for the app.
+Implementing this simply requires creating a page with a URL used by the
+application.
+
+First create a page via the page tree in the admin, and enter the correct
+URL (under the Meta data section) that maps to the urlpattern in your
+Django app. This page will then be marked as *protected*, which means it
+can't be deleted via the admin, nor can its URL be changed in the admin,
+since it points to a separate Django app.
+
+The second optional step, is to wrap the application's views in the
+``mezzanine.pages.decorators.for_page`` decorator. This will add the page
+instance to the context variable named ``page``, so the title, description,
+and any specific fields for the content type that you chose to use when
+creating the page, will be available in the template that gets loaded. The
+``for_page`` decorator takes a single argument, the URL for the page that
+the view should include. For example, here's the start of the view that
+lists blog posts in Mezzanine's blog application::
+
+    from mezzanine.pages.decorators import for_page
+
+    @for_page(settings.BLOG_SLUG)
+    def blog_post_list(request, tag=None, year=None, month=None, username=None,
+                       category=None, template="blog/blog_post_list.html"):
+        # Regular Django view code from this point on.

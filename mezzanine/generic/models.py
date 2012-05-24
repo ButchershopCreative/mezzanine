@@ -1,6 +1,4 @@
 
-from hashlib import md5
-
 from django.contrib.comments.models import Comment
 from django.contrib.contenttypes.generic import GenericForeignKey
 from django.db import models
@@ -10,15 +8,19 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from mezzanine.generic.managers import CommentManager, KeywordManager
 from mezzanine.core.models import Slugged, Orderable
 from mezzanine.conf import settings
+from mezzanine.utils.sites import current_site_id
 
 
 class ThreadedComment(Comment):
     """
     Extend the ``Comment`` model from ``django.contrib.comments`` to
-    add comment threading.
+    add comment threading. ``Comment`` provides its own site foreign key,
+    so we can't inherit from ``SiteRelated`` in ``mezzanine.core``, and
+    therefore need to set the site on ``save``. ``CommentManager``
+    inherits from Mezzanine's ``CurrentSiteManager``, so everything else
+    site related is already provided.
     """
 
-    email_hash = models.CharField(_("Email hash"), max_length=100, blank=True)
     by_author = models.BooleanField(_("By the blog author"), default=False)
     replied_to = models.ForeignKey("self", null=True, editable=False,
                                    related_name="comments")
@@ -39,14 +41,13 @@ class ThreadedComment(Comment):
 
     def save(self, *args, **kwargs):
         """
-        Store the email hash of the comment for using with
-        Gravatar.com, and set ``is_public`` based on the setting
+        Set the current site ID, and ``is_public`` based on the setting
         ``COMMENTS_DEFAULT_APPROVED``.
         """
         if not self.id:
             from mezzanine.conf import settings
-            self.email_hash = md5(self.email).hexdigest()
             self.is_public = settings.COMMENTS_DEFAULT_APPROVED
+            self.site_id = current_site_id()
         super(ThreadedComment, self).save(*args, **kwargs)
 
     ################################
@@ -58,8 +59,8 @@ class ThreadedComment(Comment):
     intro.short_description = _("Comment")
 
     def avatar_link(self):
-        from mezzanine.generic.templatetags.comment_tags import gravatar_url
-        vars = (self.user_email, gravatar_url(self.email_hash), self.user_name)
+        from mezzanine.core.templatetags.mezzanine_tags import gravatar_url
+        vars = (self.user_email, gravatar_url(self.email), self.user_name)
         return ("<a href='mailto:%s'><img style='vertical-align:middle; "
                 "margin-right:3px;' src='%s' />%s</a>" % vars)
     avatar_link.allow_tags = True
@@ -71,10 +72,16 @@ class ThreadedComment(Comment):
     admin_link.allow_tags = True
     admin_link.short_description = ""
 
+    # Exists for backward compatibility when the gravatar_url template
+    # tag which took the email address hash instead of the email address.
+    @property
+    def email_hash(self):
+        return self.email
+
 
 class Keyword(Slugged):
     """
-    Keywords/tags which are managed via a custom Javascript based
+    Keywords/tags which are managed via a custom JavaScript based
     widget in the admin.
     """
 

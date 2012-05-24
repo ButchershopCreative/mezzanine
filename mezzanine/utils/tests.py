@@ -21,6 +21,15 @@ PYFLAKES_IGNORE = (
     "redefinition of unused 'Feed'",
     "redefinition of unused 'feed'",
 
+    # Backward compatibility for timezone support
+    "redefinition of unused 'now'",
+
+    # Dummy fallback in templates for django-compressor
+    "redefinition of function 'compress'",
+
+    # Fabic config fallback
+    "redefinition of unused 'conf'",
+
 )
 
 

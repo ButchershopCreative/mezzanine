@@ -4,7 +4,6 @@ consistent access method for settings defined in applications, the project
 or Django itself. Settings can also be made editable via the admin.
 """
 
-from django.contrib.sites.models import Site
 from django.conf import settings as django_settings
 
 from mezzanine import __version__
@@ -14,7 +13,7 @@ registry = {}
 
 
 def register_setting(name="", label="", editable=False, description="",
-        default=None, append=False):
+                     default=None, choices=None, append=False):
     """
     Registers a setting that can be edited via the admin.
     """
@@ -24,12 +23,14 @@ def register_setting(name="", label="", editable=False, description="",
     else:
         default = getattr(django_settings, name, default)
         setting_type = type(default)
+        if not label:
+            label = name.replace("_", " ").title()
         if setting_type is str:
             setting_type = unicode
         registry[name] = {"name": name, "label": label,
-                          "description": description,
+                          "description": urlize(description),
                           "editable": editable, "default": default,
-                          "type": setting_type}
+                          "choices": choices, "type": setting_type}
 
 
 class Settings(object):
@@ -45,7 +46,7 @@ class Settings(object):
 
     def __init__(self):
         """
-        Marking loaded as True to begin with prevents some nasty
+        Marking loaded as ``True`` to begin with prevents some nasty
         errors when the DB table is first created.
         """
         self._loaded = True
@@ -73,7 +74,7 @@ class Settings(object):
         # Also remove settings from the DB that are no longer registered.
         if setting["editable"] and not self._loaded:
             from mezzanine.conf.models import Setting
-            settings = Setting.objects.filter(site=Site.objects.get_current())
+            settings = Setting.objects.all()
             removed = []
             for setting_obj in settings:
                 try:

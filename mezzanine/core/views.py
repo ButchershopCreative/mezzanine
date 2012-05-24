@@ -1,8 +1,13 @@
 
+from __future__ import with_statement
+import os
+from time import time
+
 from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.admin.options import ModelAdmin
-from django.contrib.auth import logout as auth_logout
-from django.contrib.messages import info
+from django.contrib.staticfiles import finders
+from django.core.urlresolvers import reverse
 from django.db.models import get_model
 from django import http
 from django.shortcuts import redirect
@@ -11,47 +16,9 @@ from django.template.loader import get_template
 from django.utils.translation import ugettext_lazy as _
 
 from mezzanine.conf import settings
-from mezzanine.core.forms import LoginForm, SignupForm, get_edit_form
+from mezzanine.core.forms import get_edit_form
 from mezzanine.core.models import Displayable
-from mezzanine.utils.views import is_editable, paginate, render
-from mezzanine.utils.views import set_cookie
-
-
-def account(request, template="account.html"):
-    """
-    Display and handle both the login and signup forms.
-    """
-    login_form = LoginForm()
-    signup_form = SignupForm()
-    if request.method == "POST":
-        posted_form = None
-        message = ""
-        if request.POST.get("login") is not None:
-            login_form = LoginForm(request.POST)
-            if login_form.is_valid():
-                posted_form = login_form
-                message = _("Successfully logged in")
-        else:
-            signup_form = SignupForm(request.POST)
-            if signup_form.is_valid():
-                signup_form.save()
-                posted_form = signup_form
-                message = _("Successfully signed up")
-        if posted_form is not None:
-            posted_form.login(request)
-            info(request, message)
-            return redirect(request.GET.get("next", "/"))
-    context = {"login_form": login_form, "signup_form": signup_form}
-    return render(request, template, context)
-
-
-def logout(request):
-    """
-    Log the user out.
-    """
-    auth_logout(request)
-    info(request, _("Successfully logged out"))
-    return redirect(request.GET.get("next", "/"))
+from mezzanine.utils.views import is_editable, paginate, render, set_cookie
 
 
 def set_device(request, device=""):
@@ -59,9 +26,32 @@ def set_device(request, device=""):
     Sets a device name in a cookie when a user explicitly wants to go
     to the site for a particular device (eg mobile).
     """
-    response = redirect(request.GET.get("next", "/"))
+    url = request.GET.get("next", "/")
+    url += "?" if "?" not in url else "&"
+    url += "device-time=" + str(time()).replace(".", "")
+    response = redirect(url)
     set_cookie(response, "mezzanine-device", device, 60 * 60 * 24 * 365)
     return response
+
+
+@staff_member_required
+def set_site(request):
+    """
+    Put the selected site ID into the session - posted to from
+    the "Select site" drop-down in the header of the admin. The
+    site ID is then used in favour of the current request's
+    domain in ``mezzanine.core.managers.CurrentSiteManager``.
+    """
+    request.session["site_id"] = int(request.GET["site_id"])
+    admin_url = reverse("admin:index")
+    next = request.GET.get("next", admin_url)
+    # Don't redirect to a change view for an object that won't exist
+    # on the selected site - go to its list view instead.
+    if next.startswith(admin_url):
+        parts = next.split("/")
+        if len(parts) > 4 and parts[4].isdigit():
+            next = "/".join(parts[:4])
+    return redirect(next)
 
 
 def direct_to_template(request, template, extra_context=None, **kwargs):
@@ -77,6 +67,7 @@ def direct_to_template(request, template, extra_context=None, **kwargs):
     return render(request, template, context)
 
 
+@staff_member_required
 def edit(request):
     """
     Process the inline editing form.
@@ -110,6 +101,41 @@ def search(request, template="search_results.html"):
                        settings.MAX_PAGING_LINKS)
     context = {"query": query, "results": results}
     return render(request, template, context)
+
+
+@staff_member_required
+def static_proxy(request):
+    """
+    Serves TinyMCE plugins inside the inline popups and the uploadify
+    SWF, as these are normally static files, and will break with
+    cross-domain JavaScript errors if ``STATIC_URL`` is an external
+    host. URL for the file is passed in via querystring in the inline
+    popup plugin template.
+    """
+    # Get the relative URL after STATIC_URL.
+    url = request.GET["u"]
+    protocol = "http" if not request.is_secure() else "https"
+    host = protocol + "://" + request.get_host()
+    for prefix in (host, settings.STATIC_URL):
+        if url.startswith(prefix):
+            url = url.replace(prefix, "", 1)
+    response = ""
+    path = finders.find(url)
+    if path:
+        if isinstance(path, (list, tuple)):
+            path = path[0]
+        with open(path, "rb") as f:
+            response = f.read()
+        mimetype = "application/octet-stream"
+        if url.endswith(".htm"):
+            # Inject <base href="{{ STATIC_URL }}"> into TinyMCE
+            # plugins, since the path static files in these won't be
+            # on the same domain.
+            mimetype = "text/html"
+            static_url = settings.STATIC_URL + os.path.split(url)[0] + "/"
+            base_tag = "<base href='%s'>" % static_url
+            response = response.replace("<head>", "<head>" + base_tag)
+    return HttpResponse(response, mimetype=mimetype)
 
 
 def server_error(request, template_name='500.html'):

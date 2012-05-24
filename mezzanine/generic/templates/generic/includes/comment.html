@@ -11,12 +11,12 @@
         <strong>
             {% if comment.url %}
             <a href="{{ comment.url }}">
-                <img src="{% gravatar_url comment.email_hash %}">
-                {{ comment.name }}
+                <img src="{% gravatar_url comment.email %}">
+                {{ comment.user_name }}
             </a>
             {% else %}
-            <img src="{% gravatar_url comment.email_hash %}">
-            {{ comment.name }}
+            <img src="{% gravatar_url comment.email %}">
+            {{ comment.user_name }}
             {% endif %}
         </strong>
         <span class="timespan">{{ comment.submit_date|timesince }} {% trans "ago" %}</span>
@@ -43,12 +43,12 @@
         <strong>
             {% if comment.url %}
             <a href="{{ comment.url }}">
-                <img src="{% gravatar_url comment.email_hash %}">
-                {{ comment.name }}
+                <img src="{% gravatar_url comment.email %}">
+                {{ comment.user_name }}
             </a>
             {% else %}
-            <img src="{% gravatar_url comment.email_hash %}">
-            {{ comment.name }}
+            <img src="{% gravatar_url comment.email %}">
+            {{ comment.user_name }}
             {% endif %}
         </strong>
         <span class="timespan">{{ comment.submit_date|timesince }} {% trans "ago" %}</span>

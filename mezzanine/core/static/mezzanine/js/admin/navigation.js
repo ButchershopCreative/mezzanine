@@ -5,18 +5,14 @@ var onMenu;
 
 $(function() {
 
-    $.ajaxSetup({
-        beforeSend: function(xhr, settings) {
-            xhr.setRequestHeader('X-CSRFToken', window.__csrf_token);
-        }
-    });
-
     // Empty out the breadcrumbs div and add the menu into it.
     $('.breadcrumbs').html('')
                      .append($('.dropdown-menu').show())
                      .css({display: 'inline-block'});
 
-    $('.dropdown-menu a').mouseover(function() {
+    var primaryMenuItems = $('.dropdown-menu a');
+
+    primaryMenuItems.mouseover(function() {
         var menu = $(this).parent().find('.dropdown-menu-menu').clone();
         // If we're over a primary menu link, clone the child menu and
         // show it.
@@ -45,7 +41,7 @@ $(function() {
 
     // Set a timeout to hide visible menus on mouseout of primary
     // menu item.
-    $('.dropdown-menu a').mouseout(function() {
+    primaryMenuItems.mouseout(function() {
         if ($(this).parent().find('.dropdown-menu-menu').length == 1) {
             onMenu = false;
             window.setTimeout(function() {
@@ -54,7 +50,38 @@ $(function() {
                 }
             }, 1000);
         }
-    })
+    });
+
+     // If the primary menu item is clicked, go to the URL for
+     // its first child.
+     primaryMenuItems.click(function() {
+        var thisHref = $(this).attr('href');
+        if (thisHref && thisHref != '#') {
+            return true;
+        }
+        var first = $(this).parent().find('.dropdown-menu-menu a:first');
+        var firstHref = first.attr('href');
+        if (firstHref) {
+            location = firstHref;
+        }
+        return false;
+    });
+
+    // Give the drop-down menu items elements the same hover
+    // state and click event as their anchors.
+    var subMenuItems = $('.dropdown-menu-menu li');
+
+    subMenuItems.live('mouseover', function() {
+        $(this).addClass('dropdown-menu-hover');
+    });
+
+    subMenuItems.live('mouseout', function() {
+        $(this).removeClass('dropdown-menu-hover');
+    });
+
+    subMenuItems.live('click', function() {
+        location = $(this).find('a').attr('href');
+    });
 
     // Provides link to site.
     $('#user-tools li:last').before('<li><a href="/">View Site</a></li>');

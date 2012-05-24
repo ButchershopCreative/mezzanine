@@ -1,9 +1,23 @@
 .. THIS DOCUMENT IS AUTO GENERATED VIA conf.py
 
-``ACCOUNTS_ENABLED``
---------------------
+``ACCOUNTS_MIN_PASSWORD_LENGTH``
+--------------------------------
 
-If True, users can create an account.
+Minimum length for passwords
+
+Default: ``6``
+
+``ACCOUNTS_PROFILE_FORM_EXCLUDE_FIELDS``
+----------------------------------------
+
+List of fields to exclude from the profile form.
+
+Default: ``()``
+
+``ACCOUNTS_VERIFICATION_REQUIRED``
+----------------------------------
+
+If ``True``, when users create an account, they will be sent an email with a verification link, which they must click to enable their account.
 
 Default: ``False``
 
@@ -21,17 +35,24 @@ Unregister these models from the admin.
 
 Default: ``()``
 
+``AKISMET_API_KEY``
+-------------------
+
+Key for `http://akismet.com <http://akismet.com>`_ spam filtering service. Used for filtering comments and forms.
+
+Default: ``''``
+
 ``BLOG_BITLY_KEY``
 ------------------
 
-Key for bit.ly URL shortening service.
+Key for `http://bit.ly <http://bit.ly>`_ URL shortening service.
 
 Default: ``''``
 
 ``BLOG_BITLY_USER``
 -------------------
 
-Username for bit.ly URL shortening service.
+Username for `http://bit.ly <http://bit.ly>`_ URL shortening service.
 
 Default: ``''``
 
@@ -63,6 +84,13 @@ Enable featured images in blog posts
 
 Default: ``False``
 
+``COMMENTS_ACCOUNT_REQUIRED``
+-----------------------------
+
+If ``True``, users must log in to comment.
+
+Default: ``False``
+
 ``COMMENTS_DEFAULT_APPROVED``
 -----------------------------
 
@@ -73,21 +101,21 @@ Default: ``True``
 ``COMMENTS_DISQUS_API_PUBLIC_KEY``
 ----------------------------------
 
-Public key for Disqus developer API
+Public key for `http://disqus.com <http://disqus.com>`_ developer API
 
 Default: ``''``
 
 ``COMMENTS_DISQUS_API_SECRET_KEY``
 ----------------------------------
 
-Secret key for Disqus developer API
+Secret key for `http://disqus.com <http://disqus.com>`_ developer API
 
 Default: ``''``
 
 ``COMMENTS_DISQUS_SHORTNAME``
 -----------------------------
 
-Shortname for the http://disqus.com comments service.
+Shortname for the `http://disqus.com <http://disqus.com>`_ comments service.
 
 Default: ``''``
 
@@ -178,14 +206,14 @@ Default: ``''``
 ``FORMS_USE_HTML5``
 -------------------
 
-If ``True``, website forms created by the forms app will use HTML5 features.
+If ``True``, website forms will use HTML5 features.
 
 Default: ``False``
 
 ``GOOGLE_ANALYTICS_ID``
 -----------------------
 
-Google Analytics ID (http://www.google.com/analytics/)
+Google Analytics ID (`http://www.google.com/analytics/ <http://www.google.com/analytics/>`_)
 
 Default: ``''``
 
@@ -231,12 +259,42 @@ Min value for a rating.
 
 Default: ``1``
 
+``RICHTEXT_ALLOWED_ATTRIBUTES``
+-------------------------------
+
+List of HTML attributes that won't be stripped from ``RichTextField`` instances.
+
+Default: ``('abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alt', 'axis', 'border', 'cellpadding', 'cellspacing', 'char', 'charoff', 'charset', 'checked', 'cite', 'class', 'clear', 'cols', 'colspan', 'color', 'compact', 'coords', 'datetime', 'dir', 'disabled', 'enctype', 'for', 'frame', 'headers', 'height', 'href', 'hreflang', 'hspace', 'id', 'ismap', 'label', 'lang', 'longdesc', 'maxlength', 'media', 'method', 'multiple', 'name', 'nohref', 'noshade', 'nowrap', 'prompt', 'readonly', 'rel', 'rev', 'rows', 'rowspan', 'rules', 'scope', 'selected', 'shape', 'size', 'span', 'src', 'start', 'style', 'summary', 'tabindex', 'target', 'title', 'type', 'usemap', 'valign', 'value', 'vspace', 'width', 'xml:lang')``
+
+``RICHTEXT_ALLOWED_TAGS``
+-------------------------
+
+List of HTML tags that won't be stripped from ``RichTextField`` instances.
+
+Default: ``('a', 'abbr', 'acronym', 'address', 'area', 'b', 'bdo', 'big', 'blockquote', 'br', 'button', 'caption', 'center', 'cite', 'code', 'col', 'colgroup', 'dd', 'del', 'dfn', 'dir', 'div', 'dl', 'dt', 'em', 'fieldset', 'font', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'input', 'ins', 'kbd', 'label', 'legend', 'li', 'map', 'menu', 'ol', 'optgroup', 'option', 'p', 'pre', 'q', 's', 'samp', 'select', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'textarea', 'tfoot', 'th', 'thead', 'tr', 'tt', 'u', 'ul', 'var', 'wbr')``
+
 ``RICHTEXT_FILTER``
 -------------------
 
 Dotted path to the function to call on a ``RichTextField`` value before it is rendered to the template.
 
 Default: ``None``
+
+``RICHTEXT_FILTER_LEVEL``
+-------------------------
+
+*Do not change this setting unless you know what you're doing.*
+
+When content is saved in a Rich Text (WYSIWYG) field, unsafe HTML tags and attributes are stripped from the content to protect against staff members intentionally adding code that could be used to cause problems, such as changing their account to a super-user with full access to the system.
+
+This setting allows you to change the level of filtering that occurs. Setting it to low will allow certain extra tags to be permitted, such as those required for embedding video. While these tags are not the main candidates for users adding malicious code, they are still considered dangerous and could potentially be mis-used by a particularly technical user, and so are filtered out when the filtering level is set to high.
+
+Setting the filtering level to no filtering, will disable all filtering, and allow any code to be entered by staff members, including script tags.
+
+Choices: High: ``1``, Low (allows video, iframe, Flash, etc): ``2``, No filtering: ``3``
+
+
+Default: ``1``
 
 ``RICHTEXT_WIDGET_CLASS``
 -------------------------
@@ -265,6 +323,13 @@ Default: ``u'An open source content management platform.'``
 Title that will display at the top of the site, and be appended to the content of the HTML title tags on every page.
 
 Default: ``'Mezzanine'``
+
+``SLUGIFY``
+-----------
+
+Dotted Python path to the callable for converting strings into URL slugs. Defaults to ``mezzanine.utils.urls.slugify_unicode`` which allows for non-ascii URLS. Change to ``django.template.defaultfilters.slugify`` to use Django's slugify function, or something of your own if required.
+
+Default: ``'mezzanine.utils.urls.slugify_unicode'``
 
 ``SSL_ENABLED``
 ---------------
@@ -306,7 +371,7 @@ Default: ``4``
 
 Sequence of setting names available within templates.
 
-Default: ``('ACCOUNTS_ENABLED', 'ADMIN_MEDIA_PREFIX', 'BLOG_BITLY_USER', 'BLOG_BITLY_KEY', 'COMMENTS_DISQUS_SHORTNAME', 'COMMENTS_NUM_LATEST', 'COMMENTS_DISQUS_API_PUBLIC_KEY', 'COMMENTS_DISQUS_API_SECRET_KEY', 'DEV_SERVER', 'FORMS_USE_HTML5', 'GRAPPELLI_INSTALLED', 'GOOGLE_ANALYTICS_ID', 'JQUERY_FILENAME', 'LOGIN_URL', 'LOGOUT_URL', 'PAGES_MENU_SHOW_ALL', 'SITE_TITLE', 'SITE_TAGLINE', 'RATINGS_MAX')``
+Default: ``('ACCOUNTS_VERIFICATION_REQUIRED', 'ADMIN_MEDIA_PREFIX', 'BLOG_BITLY_USER', 'BLOG_BITLY_KEY', 'COMMENTS_DISQUS_SHORTNAME', 'COMMENTS_NUM_LATEST', 'COMMENTS_DISQUS_API_PUBLIC_KEY', 'COMMENTS_DISQUS_API_SECRET_KEY', 'DEV_SERVER', 'FORMS_USE_HTML5', 'GRAPPELLI_INSTALLED', 'GOOGLE_ANALYTICS_ID', 'JQUERY_FILENAME', 'LOGIN_URL', 'LOGOUT_URL', 'PAGES_MENU_SHOW_ALL', 'SITE_TITLE', 'SITE_TAGLINE', 'RATINGS_MAX')``
 
 ``THUMBNAILS_DIR_NAME``
 -----------------------
