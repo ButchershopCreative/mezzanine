@@ -1,15 +1,16 @@
 
-from __future__ import with_statement
+# from __future__ import with_statement
 import os
 from time import time
 
+from django import http
 from django.contrib import admin
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.admin.options import ModelAdmin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.staticfiles import finders
 from django.core.urlresolvers import reverse
 from django.db.models import get_model
-from django import http
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.template import RequestContext
 from django.template.loader import get_template

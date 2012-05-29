@@ -5,6 +5,7 @@ or Django itself. Settings can also be made editable via the admin.
 """
 
 from django.conf import settings as django_settings
+from django.utils.html import urlize
 
 from mezzanine import __version__
 

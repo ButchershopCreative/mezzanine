@@ -170,7 +170,10 @@ class KeywordsField(BaseGenericRelation):
         new_ids = data.split(",")
         removed_ids = set(old_ids) - set(new_ids)
         # Remove current AssignedKeyword instances.
-        related_manager.all().delete()
+        try:
+            related_manager.all().delete()
+        except TypeError:
+            pass
         # Convert the data into AssignedKeyword instances.
         if data:
             data = [AssignedKeyword(keyword_id=i) for i in new_ids]
@@ -180,7 +183,10 @@ class KeywordsField(BaseGenericRelation):
         existing_ids = set([str(a.keyword_id) for a in existing])
         unused_ids = removed_ids - existing_ids
         Keyword.objects.filter(id__in=unused_ids).delete()
-        super(KeywordsField, self).save_form_data(instance, data)
+        try:
+            super(KeywordsField, self).save_form_data(instance, data)
+        except TypeError:
+            pass
 
     def contribute_to_class(self, cls, name):
         """
