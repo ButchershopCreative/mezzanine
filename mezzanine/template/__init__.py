@@ -27,9 +27,22 @@ class Library(template.Library):
             class AsTagNode(template.Node):
                 def render(self, context):
                     parts = token.split_contents()
+
                     # Resolve variables if their names are given.
-                    args = [context.get(arg, arg) for arg in parts[1:-2]]
-                    context[parts[-1]] = tag_func(*args)
+                    def resolve(arg):
+                        try:
+                            return template.Variable(arg).resolve(context)
+                        except template.VariableDoesNotExist:
+                            return arg
+                    args, kwargs = [], {}
+                    for arg in parts[1:-2]:
+                        if "=" in arg:
+                            name, val = arg.split("=", 1)
+                            if name in tag_func.func_code.co_varnames:
+                                kwargs[name] = resolve(val)
+                                continue
+                        args.append(resolve(arg))
+                    context[parts[-1]] = tag_func(*args, **kwargs)
                     return ""
             return AsTagNode()
         return self.tag(tag_wrapper)

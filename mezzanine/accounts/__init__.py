@@ -7,9 +7,11 @@ included below.
 """
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import get_model
+
+from mezzanine.utils.models import get_user_model
+from mezzanine.utils.importing import import_dotted_path
 
 
 def get_profile_model():
@@ -19,15 +21,25 @@ def get_profile_model():
     """
     profile_model = getattr(settings, "AUTH_PROFILE_MODULE", None)
     if profile_model:
-        try:
+        if profile_model and profile_model.count(".") == 1:
             Profile = get_model(*profile_model.split("."))
-        except TypeError:
-            pass
-        else:
             if Profile is not None:
                 return Profile
         raise ImproperlyConfigured("Value for AUTH_PROFILE_MODULE could "
                                    "not be loaded: %s" % profile_model)
+
+
+def get_profile_form():
+    """
+    Returns the profile form defined by ``ACCOUNTS_PROFILE_FORM_CLASS``.
+    """
+    from mezzanine.conf import settings
+    try:
+        return import_dotted_path(settings.ACCOUNTS_PROFILE_FORM_CLASS)
+    except ImportError:
+        raise ImproperlyConfigured("Value for ACCOUNTS_PROFILE_FORM_CLASS "
+                                   "could not be imported: %s" %
+                                   settings.ACCOUNTS_PROFILE_FORM_CLASS)
 
 
 def get_profile_user_fieldname():
@@ -36,6 +48,7 @@ def get_profile_user_fieldname():
     points to the ``auth.User`` model.
     """
     Profile = get_profile_model()
+    User = get_user_model()
     if Profile is not None:
         for field in Profile._meta.fields:
             if field.rel and field.rel.to == User:

@@ -8,6 +8,8 @@ The package ``mezzanine.conf`` contains the models for storing
 editable settings in the database as well as the functions for
 registering and loading these settings throughout your project.
 
+.. _registering-settings:
+
 Registering Settings
 ====================
 
@@ -15,12 +17,16 @@ Settings are defined by creating a module named ``defaults.py`` inside
 one or more of the applications defined in your project's
 ``settings.INSTALLED_APPS`` setting. Inside your ``defaults.py`` module
 you then call the function ``mezzanine.conf.register_setting`` for
-each setting you want to define which takes four keyword arguments:
+each setting you want to define which takes several keyword arguments:
 
   * ``name``: The name of the setting.
   * ``description``: The description of the setting.
   * ``editable``: If ``True``, the setting will be editable via the admin.
   * ``default``: The default value of the setting.
+  * ``choices``: A list of choices the user can select from when the
+    setting is editable.
+  * ``append``: If registering an existing setting, the default value
+    given will be appended to the current.
 
 .. note::
 
@@ -28,15 +34,15 @@ each setting you want to define which takes four keyword arguments:
     strings, integers/floats and boolean values are supported for the
     ``default`` value.
 
-For example suppose we had a ``gallery`` application and we wanted to
-create a setting that controls the number of photos displayed per page,
-we would define the following in ``gallery.defaults``::
+For example suppose we had a ``authors`` application and we wanted to
+create a setting that controls the number of books displayed per author
+page, we would define the following in ``authors.defaults``::
 
     from mezzanine.conf import register_setting
 
     register_setting(
-        name="GALLERY_PHOTOS_PER_PAGE",
-        description="The number of gallery photos to show on a single page.",
+        name="AUTHORS_BOOKS_PER_PAGE",
+        description="The number of books to show per author page.",
         editable=True,
         default=10,
     )
@@ -52,16 +58,14 @@ which when called will cause the settings object to reload editable settings
 from the database the next time an editable setting is accessed. Continuing
 on from our previous example, suppose we have a view for photos::
 
-    from django.shortcuts import render_to_response
-    from django.template import RequestContext
-
+    from django.shortcuts import render
     from mezzanine.conf import settings
-    from models import GalleryImage
+    from .models import Book
 
-    def gallery_view(request):
+    def books_view(request):
         settings.use_editable()
-        photos = GalleryImage.objects.all()[:settings.GALLERY_PHOTOS_PER_PAGE]
-        return render_to_response("gallery.html", {"photos": photos}, RequestContext(request)})
+        books = Book.objects.all()[:settings.AUTHORS_BOOKS_PER_PAGE]
+        return render(request, "books.html", {"books": books})
 
 When defining editable settings, care should be taken when considering
 where in your project the setting will be used. For example if a setting
@@ -74,6 +78,13 @@ accessed is loaded each time the view is run. This ensures that if the value
 of the setting has been changed by an admin user it will be reflected on the
 website.
 
+.. note::
+
+    It's also important to realize that with any settings flagged as
+    editable, defining a value for these in your project's
+    ``settings.py`` will only serve to provide their default values.
+    Once editable settings are modified via the admin, their values
+    stored in the database will always be used.
 
 Django Settings
 ===============

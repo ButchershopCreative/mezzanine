@@ -1,12 +1,12 @@
-
 import os
+import re
 import sys
 from functools import wraps
 from getpass import getpass, getuser
 from glob import glob
 from contextlib import contextmanager
 
-from fabric.api import env, cd, prefix, sudo as _sudo, run as _run, hide
+from fabric.api import env, cd, prefix, sudo as _sudo, run as _run, hide, task
 from fabric.contrib.files import exists, upload_template
 from fabric.colors import yellow, green, blue, red
 
@@ -43,7 +43,8 @@ env.proj_path = "%s/%s" % (env.venv_path, env.proj_dirname)
 env.manage = "%s/bin/python %s/project/manage.py" % (env.venv_path,
                                                      env.venv_path)
 env.live_host = conf.get("LIVE_HOSTNAME", env.hosts[0] if env.hosts else None)
-env.repo_url = conf.get("REPO_URL", None)
+env.repo_url = conf.get("REPO_URL", "")
+env.git = env.repo_url.startswith("git") or env.repo_url.endswith(".git")
 env.reqs_path = conf.get("REQUIREMENTS_PATH", None)
 env.gunicorn_port = conf.get("GUNICORN_PORT", 8000)
 env.locale = conf.get("LOCALE", "en_US.UTF-8")
@@ -92,7 +93,7 @@ templates = {
 @contextmanager
 def virtualenv():
     """
-    Run commands within the project's virtualenv.
+    Runs commands within the project's virtualenv.
     """
     with cd(env.venv_path):
         with prefix("source %s/bin/activate" % env.venv_path):
@@ -102,11 +103,40 @@ def virtualenv():
 @contextmanager
 def project():
     """
-    Run commands within the project's directory.
+    Runs commands within the project's directory.
     """
     with virtualenv():
         with cd(env.proj_dirname):
             yield
+
+
+@contextmanager
+def update_changed_requirements():
+    """
+    Checks for changes in the requirements file across an update,
+    and gets new requirements if changes have occurred.
+    """
+    reqs_path = os.path.join(env.proj_path, env.reqs_path)
+    get_reqs = lambda: run("cat %s" % reqs_path, show=False)
+    old_reqs = get_reqs() if env.reqs_path else ""
+    yield
+    if old_reqs:
+        new_reqs = get_reqs()
+        if old_reqs == new_reqs:
+            # Unpinned requirements should always be checked.
+            for req in new_reqs.split("\n"):
+                if req.startswith("-e"):
+                    if "@" not in req:
+                        # Editable requirement without pinned commit.
+                        break
+                elif req.strip() and not req.startswith("#"):
+                    if not set(">=<") & set(req):
+                        # PyPI requirement without version.
+                        break
+            else:
+                # All requirements are pinned.
+                return
+        pip("-r %s/%s" % (env.proj_path, env.reqs_path))
 
 
 ###########################################
@@ -125,9 +155,10 @@ def print_command(command):
            red(" ->", bold=True))
 
 
+@task
 def run(command, show=True):
     """
-    Run a shell comand on the remote server.
+    Runs a shell comand on the remote server.
     """
     if show:
         print_command(command)
@@ -135,9 +166,10 @@ def run(command, show=True):
         return _run(command)
 
 
+@task
 def sudo(command, show=True):
     """
-    Run a command as sudo.
+    Runs a command as sudo.
     """
     if show:
         print_command(command)
@@ -156,7 +188,7 @@ def log_call(func):
 
 def get_templates():
     """
-    Return each of the templates with env vars injected.
+    Returns each of the templates with env vars injected.
     """
     injected = {}
     for name, data in templates.items():
@@ -166,7 +198,7 @@ def get_templates():
 
 def upload_template_and_reload(name):
     """
-    Upload a template only if it has changed, and if so, reload a
+    Uploads a template only if it has changed, and if so, reload a
     related service.
     """
     template = get_templates()[name]
@@ -181,6 +213,8 @@ def upload_template_and_reload(name):
             remote_data = sudo("cat %s" % remote_path, show=False)
     with open(local_path, "r") as f:
         local_data = f.read()
+        # Escape all non-string-formatting-placeholder occurrences of '%':
+        local_data = re.sub(r"%(?!\(\w+\)s)", "%%", local_data)
         if "%(db_pass)s" in local_data:
             env.db_pass = db_pass()
         local_data %= env
@@ -198,53 +232,91 @@ def upload_template_and_reload(name):
 
 def db_pass():
     """
-    Prompt for the database password if unknown.
+    Prompts for the database password if unknown.
     """
     if not env.db_pass:
         env.db_pass = getpass("Enter the database password: ")
     return env.db_pass
 
 
+@task
 def apt(packages):
     """
-    Install one or more system packages via apt.
+    Installs one or more system packages via apt.
     """
     return sudo("apt-get install -y -q " + packages)
 
 
+@task
 def pip(packages):
     """
-    Install one or more Python packages within the virtual environment.
+    Installs one or more Python packages within the virtual environment.
     """
     with virtualenv():
         return sudo("pip install %s" % packages)
 
 
+def postgres(command):
+    """
+    Runs the given command as the postgres user.
+    """
+    show = not command.startswith("psql")
+    return run("sudo -u root sudo -u postgres %s" % command, show=show)
+
+
+@task
 def psql(sql, show=True):
     """
-    Run SQL against the project's database.
+    Runs SQL against the project's database.
     """
-    out = run('sudo -u root sudo -u postgres psql -c "%s"' % sql, show=False)
+    out = postgres('psql -c "%s"' % sql)
     if show:
         print_command(sql)
     return out
 
 
+@task
+def backup(filename):
+    """
+    Backs up the database.
+    """
+    return postgres("pg_dump -Fc %s > %s" % (env.proj_name, filename))
+
+
+@task
+def restore(filename):
+    """
+    Restores the database.
+    """
+    return postgres("pg_restore -c -d %s %s" % (env.proj_name, filename))
+
+
+@task
 def python(code, show=True):
     """
-    Run Python code in the virtual environment, with the Django
-    project loaded.
+    Runs Python code in the project's virtual environment, with Django loaded.
     """
     setup = "import os; os.environ[\'DJANGO_SETTINGS_MODULE\']=\'settings\';"
+    full_code = 'python -c "%s%s"' % (setup, code.replace("`", "\\\`"))
     with project():
-        return run('python -c "%s%s"' % (setup, code), show=False)
+        result = run(full_code, show=False)
         if show:
             print_command(code)
+    return result
 
 
+def static():
+    """
+    Returns the live STATIC_ROOT directory.
+    """
+    return python("from django.conf import settings;"
+                  "print settings.STATIC_ROOT").split("\n")[-1]
+
+
+@task
 def manage(command):
     """
-    Run a Django management command.
+    Runs a Django management command.
     """
     return run("%s %s" % (env.manage, command))
 
@@ -253,11 +325,11 @@ def manage(command):
 # Install and configure #
 #########################
 
+@task
 @log_call
 def install():
     """
-    Install the base system-level and Python requirements for the
-    entire server.
+    Installs the base system and Python requirements for the entire server.
     """
     locale = "LC_ALL=%s" % env.locale
     with hide("stdout"):
@@ -271,12 +343,14 @@ def install():
     sudo("pip install virtualenv mercurial")
 
 
+@task
 @log_call
 def create():
     """
-    Create a virtual environment, pull the project's repo from
-    version control, add system-level configs for the project,
-    and initialise the database with the live host.
+    Create a new virtual environment for a project.
+    Pulls the project's repo from version control, adds system-level
+    configs for the project, and initialises the database with the
+    live host.
     """
 
     # Create virtualenv
@@ -289,7 +363,7 @@ def create():
                 return False
             remove()
         run("virtualenv %s --distribute" % env.proj_name)
-        vcs = "git" if env.repo_url.startswith("git") else "hg"
+        vcs = "git" if env.git else "hg"
         run("%s clone %s %s" % (vcs, env.repo_url, env.proj_path))
 
     # Create DB and DB user.
@@ -319,8 +393,8 @@ def create():
                 sudo("openssl req -new -x509 -nodes -out %s -keyout %s "
                      "-subj '/CN=%s' -days 3650" % parts)
             else:
-                upload_template(crt_file, crt_local, use_sudo=True)
-                upload_template(key_file, key_local, use_sudo=True)
+                upload_template(crt_local, crt_file, use_sudo=True)
+                upload_template(key_local, key_file, use_sudo=True)
 
     # Set up project.
     upload_template_and_reload("settings")
@@ -329,7 +403,7 @@ def create():
             pip("-r %s/%s" % (env.proj_path, env.reqs_path))
         pip("gunicorn setproctitle south psycopg2 "
             "django-compressor python-memcached")
-        manage("createdb --noinput")
+        manage("createdb --noinput --nodata")
         python("from django.conf import settings;"
                "from django.contrib.sites.models import Site;"
                "site, _ = Site.objects.get_or_create(id=settings.SITE_ID);"
@@ -337,7 +411,8 @@ def create():
                "site.save();")
         if env.admin_pass:
             pw = env.admin_pass
-            user_py = ("from django.contrib.auth.models import User;"
+            user_py = ("from mezzanine.utils.models import get_user_model;"
+                       "User = get_user_model();"
                        "u, _ = User.objects.get_or_create(username='admin');"
                        "u.is_staff = u.is_superuser = True;"
                        "u.set_password('%s');"
@@ -349,6 +424,7 @@ def create():
     return True
 
 
+@task
 @log_call
 def remove():
     """
@@ -368,6 +444,7 @@ def remove():
 # Deployment #
 ##############
 
+@task
 @log_call
 def restart():
     """
@@ -377,12 +454,15 @@ def restart():
     if exists(pid_path):
         sudo("kill -HUP `cat %s`" % pid_path)
     else:
-        sudo("supervisorctl start %s:gunicorn" % env.proj_name)
+        start_args = (env.proj_name, env.proj_name)
+        sudo("supervisorctl start %s:gunicorn_%s" % start_args)
 
 
+@task
 @log_call
 def deploy():
     """
+    Deploy latest version of the project.
     Check out the latest version of the project from version
     control, install new requirements, sync and migrate the database,
     collect any new static assets, and restart gunicorn's work
@@ -398,22 +478,46 @@ def deploy():
     for name in get_templates():
         upload_template_and_reload(name)
     with project():
-        git = env.repo_url.startswith("git")
-        run("git pull -f" if git else "hg pull && hg up -C")
-        if env.reqs_path:
-            pip("-r %s/%s" % (env.proj_path, env.reqs_path))
+        backup("last.db")
+        run("tar -cf last.tar %s" % static())
+        git = env.git
+        last_commit = "git rev-parse HEAD" if git else "hg id -i"
+        run("%s > last.commit" % last_commit)
+        with update_changed_requirements():
+            run("git pull origin master -f" if git else "hg pull && hg up -C")
+        manage("collectstatic -v 0 --noinput")
         manage("syncdb --noinput")
         manage("migrate --noinput")
-        manage("collectstatic -v 0 --noinput")
     restart()
     return True
 
 
+@task
+@log_call
+def rollback():
+    """
+    Reverts project state to the last deploy.
+    When a deploy is performed, the current state of the project is
+    backed up. This includes the last commit checked out, the database,
+    and all static files. Calling rollback will revert all of these to
+    their state prior to the last deploy.
+    """
+    with project():
+        with update_changed_requirements():
+            update = "git checkout" if env.git else "hg up -C"
+            run("%s `cat last.commit`" % update)
+        with cd(os.path.join(static(), "..")):
+            run("tar -xf %s" % os.path.join(env.proj_path, "last.tar"))
+        restore("last.db")
+    restart()
+
+
+@task
 @log_call
 def all():
     """
-    Install everything required on a new system, from the base
-    software, up to the deployed project.
+    Installs everything required on a new system and deploy.
+    From the base software, up to the deployed project.
     """
     install()
     if create():

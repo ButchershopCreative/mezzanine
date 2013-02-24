@@ -54,7 +54,14 @@ $(function() {
 
      // If the primary menu item is clicked, go to the URL for
      // its first child.
-     primaryMenuItems.click(function() {
+     primaryMenuItems.click(function(e) {
+        if (e.isDefaultPrevented() || e.metaKey || e.ctrlKey) {
+            // Don't open the clicked link when Cmd+Click is used on OS X
+            // Regular LMB click pass-through works as intended
+            // #TODO: test on other platforms and browsers
+            return;
+        }
+
         var thisHref = $(this).attr('href');
         if (thisHref && thisHref != '#') {
             return true;
@@ -79,12 +86,17 @@ $(function() {
         $(this).removeClass('dropdown-menu-hover');
     });
 
-    subMenuItems.live('click', function() {
+    subMenuItems.live('click', function(e) {
+        if (e.isDefaultPrevented() || e.metaKey || e.ctrlKey) {
+            // Don't open the clicked link when Cmd+Click is used on OS X
+            return;
+        }
+
         location = $(this).find('a').attr('href');
     });
 
     // Provides link to site.
-    $('#user-tools li:last').before('<li><a href="/">View Site</a></li>');
+    $('#user-tools li:last').before('<li>' + window.__home_link + '</li>');
 
 });
 

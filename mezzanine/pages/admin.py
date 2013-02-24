@@ -8,13 +8,25 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 
 from mezzanine.pages.models import Page, RichTextPage, Link
-from mezzanine.core.admin import DisplayableAdmin
+from mezzanine.core.admin import DisplayableAdmin, DisplayableAdminForm
 from mezzanine.utils.urls import admin_url
 
 
 page_fieldsets = deepcopy(DisplayableAdmin.fieldsets)
-page_fieldsets[0][1]["fields"] += (("in_navigation", "in_footer"),
-                                    "login_required",)
+page_fieldsets[0][1]["fields"] += ("in_menus", "login_required",)
+
+
+class PageAdminForm(DisplayableAdminForm):
+
+    def clean_slug(self):
+        """
+        If the slug has been changed, save the old one. We will use it later
+        in PageAdmin.model_save() to make the slug change propagate down the
+        page tree.
+        """
+        if self.instance.slug != self.cleaned_data['slug']:
+            self.instance._old_slug = self.instance.slug
+        return self.cleaned_data['slug']
 
 
 class PageAdmin(DisplayableAdmin):
@@ -24,7 +36,9 @@ class PageAdmin(DisplayableAdmin):
     ``Page`` model and its subclasses.
     """
 
+    form = PageAdminForm
     fieldsets = page_fieldsets
+    change_list_template = "admin/pages/page/change_list.html"
 
     def __init__(self, *args, **kwargs):
         """
@@ -43,8 +57,18 @@ class PageAdmin(DisplayableAdmin):
             # Insert each field between the publishing fields and nav
             # fields. Do so in reverse order to retain the order of
             # the model's fields.
-            for field in reversed(self.model._meta.fields):
-                if field not in Page._meta.fields and field.name != "page_ptr":
+            exclude_fields = Page._meta.get_all_field_names() + ["page_ptr"]
+            try:
+                exclude_fields.extend(self.exclude)
+            except (AttributeError, TypeError):
+                pass
+            try:
+                exclude_fields.extend(self.form.Meta.exclude)
+            except (AttributeError, TypeError):
+                pass
+            fields = self.model._meta.fields + self.model._meta.many_to_many
+            for field in reversed(fields):
+                if field.name not in exclude_fields and field.editable:
                     self.fieldsets[0][1]["fields"].insert(3, field.name)
 
     def in_menu(self):
@@ -89,8 +113,9 @@ class PageAdmin(DisplayableAdmin):
                                        content_model.id)
                 return HttpResponseRedirect(change_url)
         extra_context = extra_context or {}
-        extra_context["hide_delete_link"] = not page.can_delete(request)
-        extra_context["hide_slug_field"] = page.overridden()
+        can_delete = content_model.can_delete(request)
+        extra_context["hide_delete_link"] = not can_delete
+        extra_context["hide_slug_field"] = content_model.overridden()
         return super(PageAdmin, self).change_view(request, object_id,
                                                   extra_context=extra_context)
 
@@ -115,14 +140,19 @@ class PageAdmin(DisplayableAdmin):
 
     def save_model(self, request, obj, form, change):
         """
-        Set the ID of the parent page if passed in via querystring.
+        Set the ID of the parent page if passed in via querystring, and make
+        sure the new slug propagates to all descendant pages.
         """
+        if change and hasattr(obj, "_old_slug"):
+            # _old_slug was set in PageAdminForm.clean_slug().
+            new_slug = obj.slug
+            obj.slug = obj._old_slug
+            obj.set_slug(new_slug)
+
         # Force parent to be saved to trigger handling of ordering and slugs.
         parent = request.GET.get("parent")
         if parent is not None and not change:
             obj.parent_id = parent
-            obj._order = None
-            obj.slug = None
             obj.save()
         super(PageAdmin, self).save_model(request, obj, form, change)
 
@@ -172,6 +202,15 @@ class LinkAdmin(PageAdmin):
         if db_field.name == "slug":
             kwargs["required"] = True
         return super(LinkAdmin, self).formfield_for_dbfield(db_field, **kwargs)
+
+    def save_form(self, request, form, change):
+        """
+        Don't show links in the sitemap.
+        """
+        obj = form.save(commit=False)
+        if not obj.id and "in_sitemap" not in form.fields:
+            obj.in_sitemap = False
+        return super(LinkAdmin, self).save_form(request, form, change)
 
 
 admin.site.register(Page, PageAdmin)

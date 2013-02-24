@@ -1,5 +1,6 @@
 
 import os
+import sys
 
 from django.contrib.sites.models import Site
 
@@ -54,6 +55,25 @@ def current_site_id():
     return site_id
 
 
+def has_site_permission(user):
+    """
+    Checks if a staff user has staff-level access for the current site.
+    The actual permission lookup occurs in ``SitePermissionMiddleware``
+    which then marks the request with the ``has_site_permission`` flag,
+    so that we only query the db once per request, so this function
+    serves as the entry point for everything else to check access. We
+    also fall back to an ``is_staff`` check if the middleware is not
+    installed, to ease migration.
+    """
+    mw = "mezzanine.core.middleware.SitePermissionMiddleware"
+    if mw not in settings.MIDDLEWARE_CLASSES:
+        from warnings import warn
+        warn(mw + " missing from settings.MIDDLEWARE_CLASSES - per site"
+             "permissions not applied")
+        return user.is_staff and user.is_active
+    return getattr(user, "has_site_permission", False)
+
+
 def host_theme_path(request):
     """
     Returns the directory of the theme associated with the given host.
@@ -61,7 +81,8 @@ def host_theme_path(request):
     for (host, theme) in settings.HOST_THEMES:
         if host.lower() == request.get_host().split(":")[0].lower():
             try:
-                module = __import__(theme)
+                __import__(theme)
+                module = sys.modules[theme]
             except ImportError:
                 pass
             else:

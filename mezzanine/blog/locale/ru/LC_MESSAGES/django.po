@@ -1,59 +1,114 @@
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#, fuzzy
+# Translators:
+# Andrew Grigorev <andrew@ei-grad.ru>, 2011.
+# Dmitry Falk <tfalc@mail.ru>, 2012.
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: Mezzanine\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-05-26 12:27-0430\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2013-01-11 19:58-0500\n"
+"PO-Revision-Date: 2012-10-14 21:32+0000\n"
+"Last-Translator: Sebastián Ramírez Magrí <sebasmagri@gmail.com>\n"
+"Language-Team: Russian (http://www.transifex.com/projects/p/mezzanine/"
+"language/ru/)\n"
+"Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2)\n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: models.py:17 templates/blog/includes/filter_panel.html:30
-msgid "Categories"
+#: admin.py:20
+msgid "Other posts"
 msgstr ""
+
+#: defaults.py:20
+msgid "bit.ly username"
+msgstr "Логин на bit.ly"
+
+#: defaults.py:21
+msgid "Username for http://bit.ly URL shortening service."
+msgstr "Имя пользователя на сервисе сокращения URL bit.ly"
+
+#: defaults.py:28
+msgid "bit.ly key"
+msgstr "Ключ bit.ly"
+
+#: defaults.py:29
+msgid "Key for http://bit.ly URL shortening service."
+msgstr "Ключ на сервисе сокращения URL bit.ly"
+
+#: defaults.py:36
+msgid "Enable featured images in blog posts"
+msgstr "Включает изображение для заметок"
+
+#: defaults.py:43
+msgid "Use date URLs"
+msgstr "Использовать адреса с датой"
+
+#: defaults.py:44
+msgid ""
+"If ``True``, URLs for blog post include the month and year. Eg: /blog/yyyy/"
+"mm/slug/"
+msgstr ""
+"Если ``Да``, адреса страниц блога будут содержать год и месяц: /blog/yyyy/mm/"
+"slug/"
+
+#: defaults.py:52
+msgid "Blog posts per page"
+msgstr "Количество заметок на странице"
+
+#: defaults.py:53
+msgid "Number of blog posts shown on a blog listing page."
+msgstr "Количество заметок, отображаемых в списке на одной странице"
+
+#: defaults.py:60
+msgid "Slug of the page object for the blog."
+msgstr "Внутренний URL главной страницы блога"
+
+#: models.py:17 templates/blog/includes/filter_panel.html:35
+msgid "Categories"
+msgstr "Категории"
 
 #: models.py:19
 msgid "Allow comments"
 msgstr ""
 
-#: models.py:21 templates/blog/blog_post_list.html:111
+#: models.py:21 templates/blog/blog_post_detail.html:43
+#: templates/blog/blog_post_list.html:126
 msgid "Comments"
-msgstr ""
+msgstr "Комментарии"
 
 #: models.py:22
 msgid "Rating"
-msgstr ""
+msgstr "Рейтинг"
 
 #: models.py:23
 msgid "Featured Image"
 msgstr ""
 
-#: models.py:27
+#: models.py:27 templates/blog/blog_post_detail.html:113
+msgid "Related posts"
+msgstr ""
+
+#: models.py:32
 msgid "Blog post"
-msgstr ""
+msgstr "Запись в блоге"
 
-#: models.py:28
+#: models.py:33
 msgid "Blog posts"
-msgstr ""
+msgstr "Записи в блоге"
 
-#: models.py:50
+#: models.py:79
 msgid "Blog Category"
-msgstr ""
+msgstr "Категория блога"
 
-#: models.py:51
+#: models.py:80
 msgid "Blog Categories"
-msgstr ""
+msgstr "Категории блога"
 
 #: templates/admin/includes/quick_blog.html:18
 msgid "Quick Blog"
@@ -61,104 +116,108 @@ msgstr ""
 
 #: templates/admin/includes/quick_blog.html:27
 msgid "Save Draft"
-msgstr ""
+msgstr "Сохранить черновик"
 
-#: templates/blog/blog_post_detail.html:21
-msgid "Home"
-msgstr ""
-
-#: templates/blog/blog_post_detail.html:34
-#: templates/blog/blog_post_list.html:74
+#: templates/blog/blog_post_detail.html:29
+#: templates/blog/blog_post_list.html:83
 msgid "Posted by"
+msgstr "Написал(а)"
+
+#: templates/blog/blog_post_detail.html:33
+#: templates/blog/blog_post_list.html:93
+#, python-format
+msgid "%(sometime)s ago"
 msgstr ""
 
-#: templates/blog/blog_post_detail.html:38
-#: templates/blog/blog_post_list.html:84
-msgid "ago"
-msgstr ""
-
-#: templates/blog/blog_post_detail.html:42
-#: templates/blog/blog_post_list.html:115
+#: templates/blog/blog_post_detail.html:46
+#: templates/blog/blog_post_list.html:130
 #, python-format
 msgid "1 comment"
 msgid_plural "%(comments_count)s comments"
 msgstr[0] ""
 msgstr[1] ""
+msgstr[2] ""
 
-#: templates/blog/blog_post_detail.html:58
-#: templates/blog/blog_post_list.html:98
-#: templates/blog/includes/filter_panel.html:41
+#: templates/blog/blog_post_detail.html:74
+#: templates/blog/blog_post_list.html:113
+#: templates/blog/includes/filter_panel.html:48
 msgid "Tags"
-msgstr ""
+msgstr "Теги"
 
-#: templates/blog/blog_post_detail.html:69
+#: templates/blog/blog_post_detail.html:87
 msgid "Share on Twitter"
-msgstr ""
+msgstr "Опубликовать в Twitter"
 
-#: templates/blog/blog_post_detail.html:70
+#: templates/blog/blog_post_detail.html:88
 msgid "Share on Facebook"
-msgstr ""
+msgstr "Опубликовать в Facebook"
 
 #: templates/blog/blog_post_list.html:4 templates/blog/blog_post_list.html:22
 msgid "Blog"
-msgstr ""
+msgstr "Блог"
 
 #: templates/blog/blog_post_list.html:31
 msgid "Tag:"
-msgstr ""
+msgstr "Тег:"
 
 #: templates/blog/blog_post_list.html:33
 msgid "Category:"
-msgstr ""
+msgstr "Категория:"
 
 #: templates/blog/blog_post_list.html:37
 msgid "Author:"
-msgstr ""
+msgstr "Автор:"
 
-#: templates/blog/blog_post_list.html:49
+#: templates/blog/blog_post_list.html:50
 msgid "Viewing posts tagged"
-msgstr ""
+msgstr "Просмотр записей с тегом"
 
-#: templates/blog/blog_post_list.html:51
+#: templates/blog/blog_post_list.html:52
 msgid "Viewing posts for the category"
-msgstr ""
+msgstr "Просмотр записей в категории"
 
-#: templates/blog/blog_post_list.html:53
+#: templates/blog/blog_post_list.html:54
 msgid "Viewing posts from"
-msgstr ""
+msgstr "Просмотр записей за"
 
-#: templates/blog/blog_post_list.html:56
+#: templates/blog/blog_post_list.html:57
 msgid "Viewing posts by"
-msgstr ""
+msgstr "Просмотр записей от"
 
-#: templates/blog/blog_post_list.html:79
+#: templates/blog/blog_post_list.html:88
 msgid "in"
-msgstr ""
+msgstr "в"
 
-#: templates/blog/blog_post_list.html:106
+#: templates/blog/blog_post_list.html:121
 msgid "read more"
-msgstr ""
+msgstr "читать далее"
 
-#: templates/blog/includes/filter_panel.html:5
+#: templates/blog/includes/filter_panel.html:6
 msgid "Recent Posts"
-msgstr ""
+msgstr "Последние записи"
 
-#: templates/blog/includes/filter_panel.html:16
+#: templates/blog/includes/filter_panel.html:19
 msgid "Archive"
-msgstr ""
+msgstr "Архив"
 
-#: templates/blog/includes/filter_panel.html:55
+#: templates/blog/includes/filter_panel.html:64
 msgid "Authors"
-msgstr ""
+msgstr "Авторы"
 
-#: templates/blog/includes/filter_panel.html:65
+#: templates/blog/includes/filter_panel.html:76
 msgid "Feeds"
-msgstr ""
+msgstr "Ленты"
 
-#: templates/blog/includes/filter_panel.html:66
+#: templates/blog/includes/filter_panel.html:78
+#: templates/blog/includes/filter_panel.html:82
+#: templates/blog/includes/filter_panel.html:86
+#: templates/blog/includes/filter_panel.html:90
 msgid "RSS"
-msgstr ""
+msgstr "RSS"
 
-#: templates/blog/includes/filter_panel.html:67
+#: templates/blog/includes/filter_panel.html:79
+#: templates/blog/includes/filter_panel.html:83
+#: templates/blog/includes/filter_panel.html:87
+#: templates/blog/includes/filter_panel.html:91
 msgid "Atom"
-msgstr ""
+msgstr "Atom"

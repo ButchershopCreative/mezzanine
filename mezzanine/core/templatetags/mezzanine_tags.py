@@ -10,17 +10,25 @@ from django.contrib.sites.models import Site
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse, NoReverseMatch
-from django.db.models import Model
+from django.db.models import Model, get_model
+
 from django.template import (Context, Node, TextNode, Template,
                              TemplateSyntaxError, TOKEN_TEXT, TOKEN_VAR,
                              TOKEN_COMMENT, TOKEN_BLOCK)
 
+from django.template.defaultfilters import escape
 from django.template.loader import get_template
 from django.utils.html import strip_tags
 from django.utils.simplejson import loads
 from django.utils.text import capfirst
 
-from PIL import Image, ImageOps
+# Try to import PIL in either of the two ways it can end up installed.
+try:
+    from PIL import Image, ImageFile, ImageOps
+except ImportError:
+    import Image
+    import ImageFile
+    import ImageOps
 
 from mezzanine.conf import settings
 from mezzanine.core.fields import RichTextField
@@ -28,7 +36,7 @@ from mezzanine.core.forms import get_edit_form
 from mezzanine.utils.cache import nevercache_token, cache_installed
 from mezzanine.utils.html import decode_entities
 from mezzanine.utils.importing import import_dotted_path
-from mezzanine.utils.sites import current_site_id
+from mezzanine.utils.sites import current_site_id, has_site_permission
 from mezzanine.utils.urls import admin_url
 from mezzanine.utils.views import is_editable
 from mezzanine import template
@@ -98,6 +106,22 @@ def fields_for(context, form):
     """
     context["form_for_fields"] = form
     return context
+
+
+@register.filter
+def sort_by(items, attr):
+    """
+    General sort filter - sorts by either attribute or key.
+    """
+    def key_func(item):
+        try:
+            return getattr(item, attr)
+        except AttributeError:
+            try:
+                return item[attr]
+            except TypeError:
+                getattr(item, attr)  # Reraise AttributeError
+    return sorted(items, key=key_func)
 
 
 @register.filter
@@ -179,8 +203,8 @@ def gravatar_url(email, size=32):
     """
     Return the full URL for a Gravatar given an email hash.
     """
-    email_hash = md5(email).hexdigest()
-    return "http://www.gravatar.com/avatar/%s?s=%s" % (email_hash, size)
+    bits = (md5(email.lower()).hexdigest(), size)
+    return "http://www.gravatar.com/avatar/%s?s=%s&d=identicon&r=PG" % bits
 
 
 @register.to_end_tag
@@ -189,7 +213,7 @@ def metablock(parsed):
     Remove HTML tags, entities and superfluous characters from meta blocks.
     """
     parsed = " ".join(parsed.replace("\n", "").split()).replace(" ,", ",")
-    return strip_tags(decode_entities(parsed))
+    return escape(strip_tags(decode_entities(parsed)))
 
 
 @register.inclusion_tag("includes/pagination.html", takes_context=True)
@@ -203,6 +227,31 @@ def pagination_for(context, current_page):
         del querystring["page"]
     querystring = querystring.urlencode()
     return {"current_page": current_page, "querystring": querystring}
+
+
+@register.inclusion_tag("includes/search_form.html", takes_context=True)
+def search_form(context, search_model_names=None):
+    """
+    Includes the search form with a list of models to use as choices for
+    filtering the search by. Models should be a string with models in the
+    format ``app_label.model_name`` separated by spaces. The string ``all``
+    can also be used, in which case the models defined by the
+    ``SEARCH_MODEL_CHOICES`` setting will be used.
+    """
+    if not search_model_names:
+        search_model_names = []
+    elif search_model_names == "all":
+        search_model_names = list(settings.SEARCH_MODEL_CHOICES)
+    else:
+        search_model_names = search_model_names.split(" ")
+    search_model_choices = []
+    for model_name in search_model_names:
+        model = get_model(*model_name.split(".", 1))
+        if model:  # Might not be installed.
+            verbose_name = model._meta.verbose_name_plural.capitalize()
+            search_model_choices.append((verbose_name, model_name))
+    context["search_model_choices"] = sorted(search_model_choices)
+    return context
 
 
 @register.simple_tag
@@ -228,7 +277,8 @@ def thumbnail(image_url, width, height, quality=95):
     if not os.path.exists(thumb_dir):
         os.makedirs(thumb_dir)
     thumb_path = os.path.join(thumb_dir, thumb_name)
-    thumb_url = "%s/%s" % (settings.THUMBNAILS_DIR_NAME, quote(thumb_name))
+    thumb_url = "%s/%s" % (settings.THUMBNAILS_DIR_NAME,
+                           quote(thumb_name.encode("utf-8")))
     image_url_path = os.path.dirname(image_url)
     if image_url_path:
         thumb_url = "%s/%s" % (image_url_path, thumb_url)
@@ -248,7 +298,13 @@ def thumbnail(image_url, width, height, quality=95):
         # Requested image does not exist, just return its URL.
         return image_url
 
-    image = Image.open(default_storage.open(image_url))
+    f = default_storage.open(image_url)
+    try:
+        image = Image.open(f)
+    except:
+        # Invalid image format
+        return image_url
+
     image_info = image.info
     width = int(width)
     height = int(height)
@@ -263,6 +319,8 @@ def thumbnail(image_url, width, height, quality=95):
         height = image.size[1] * width / image.size[0]
     if image.mode not in ("L", "RGBA"):
         image = image.convert("RGBA")
+    # Required for progressive jpgs.
+    ImageFile.MAXBLOCK = image.size[0] * image.size[1]
     try:
         image = ImageOps.fit(image, (width, height), Image.ANTIALIAS)
         image = image.save(thumb_path, filetype, quality=quality, **image_info)
@@ -271,7 +329,14 @@ def thumbnail(image_url, width, height, quality=95):
         if "://" in settings.MEDIA_URL:
             with open(thumb_path, "r") as f:
                 default_storage.save(thumb_url, File(f))
-    except:
+    except Exception:
+        # If an error occurred, a corrupted image may have been saved,
+        # so remove it, otherwise the check for it existing will just
+        # return the corrupted image next time it's requested.
+        try:
+            os.remove(thumb_path)
+        except Exception:
+            pass
         return image_url
     return thumb_url
 
@@ -281,10 +346,13 @@ def editable_loader(context):
     """
     Set up the required JS/CSS for the in-line editing toolbar and controls.
     """
-    t = get_template("includes/editable_toolbar.html")
-    context["REDIRECT_FIELD_NAME"] = REDIRECT_FIELD_NAME
-    context["toolbar"] = t.render(Context(context))
-    context["richtext_media"] = RichTextField().formfield().widget.media
+    user = context["request"].user
+    context["has_site_permission"] = has_site_permission(user)
+    if context["has_site_permission"]:
+        t = get_template("includes/editable_toolbar.html")
+        context["REDIRECT_FIELD_NAME"] = REDIRECT_FIELD_NAME
+        context["toolbar"] = t.render(Context(context))
+        context["richtext_media"] = RichTextField().formfield().widget.media
     return context
 
 
@@ -311,7 +379,7 @@ def editable(parsed, context, token):
     """
     def parse_field(field):
         field = field.split(".")
-        obj = context[field.pop(0)]
+        obj = context.get(field.pop(0), None)
         attr = field.pop()
         while field:
             obj = getattr(obj, field.pop(0))
@@ -361,8 +429,21 @@ def admin_app_list(request):
     dashboard widget.
     """
     app_dict = {}
-    menu_order = [(x[0], list(x[1])) for x in settings.ADMIN_MENU_ORDER]
-    found_items = set()
+
+    # Model or view --> (group index, group title, item index, item title).
+    menu_order = {}
+    for (group_index, group) in enumerate(settings.ADMIN_MENU_ORDER):
+        group_title, items = group
+        group_title = group_title.title()
+        for (item_index, item) in enumerate(items):
+            if isinstance(item, (tuple, list)):
+                item_title, item = item
+            else:
+                item_title = None
+            menu_order[item] = (group_index, group_title,
+                                item_index, item_title)
+
+    # Add all registered models, using group and title from menu order.
     for (model, model_admin) in admin.site._registry.items():
         opts = model._meta
         in_menu = not hasattr(model_admin, "in_menu") or model_admin.in_menu()
@@ -371,64 +452,63 @@ def admin_app_list(request):
             admin_url_name = ""
             if perms["change"]:
                 admin_url_name = "changelist"
-            elif perms["add"]:
+                change_url = admin_url(model, admin_url_name)
+            else:
+                change_url = None
+            if perms["add"]:
                 admin_url_name = "add"
+                add_url = admin_url(model, admin_url_name)
+            else:
+                add_url = None
             if admin_url_name:
                 model_label = "%s.%s" % (opts.app_label, opts.object_name)
-                for (name, items) in menu_order:
-                    try:
-                        index = list(items).index(model_label)
-                    except ValueError:
-                        pass
-                    else:
-                        found_items.add(model_label)
-                        app_title = name
-                        break
-                else:
-                    index = None
-                    app_title = opts.app_label
-                model_dict = {
-                    "index": index,
-                    "perms": model_admin.get_model_perms(request),
-                    "name": capfirst(model._meta.verbose_name_plural),
-                    "admin_url": admin_url(model, admin_url_name),
-                }
-                app_title = app_title.title()
-                if app_title in app_dict:
-                    app_dict[app_title]["models"].append(model_dict)
-                else:
-                    try:
-                        titles = [x[0] for x in settings.ADMIN_MENU_ORDER]
-                        index = titles.index(app_title)
-                    except ValueError:
-                        index = None
-                    app_dict[app_title] = {
-                        "index": index,
-                        "name": app_title,
-                        "models": [model_dict],
-                    }
-
-    for (i, (name, items)) in enumerate(menu_order):
-        name = unicode(name)
-        for unfound_item in set(items) - found_items:
-            if isinstance(unfound_item, (list, tuple)):
-                item_name, item_url = unfound_item[0], unfound_item[1]
                 try:
-                    item_url = reverse(item_url)
-                except NoReverseMatch:
-                    continue
-                if name not in app_dict:
-                    app_dict[name] = {
-                        "index": i,
-                        "name": name,
+                    app_index, app_title, model_index, model_title = \
+                        menu_order[model_label]
+                except KeyError:
+                    app_index = None
+                    app_title = opts.app_label.title()
+                    model_index = None
+                    model_title = None
+                else:
+                    del menu_order[model_label]
+
+                if not model_title:
+                    model_title = capfirst(model._meta.verbose_name_plural)
+
+                if app_title not in app_dict:
+                    app_dict[app_title] = {
+                        "index": app_index,
+                        "name": app_title,
                         "models": [],
                     }
-                app_dict[name]["models"].append({
-                    "index": items.index(unfound_item),
-                    "perms": {"custom": True},
-                    "name": item_name,
-                    "admin_url": item_url,
+                app_dict[app_title]["models"].append({
+                    "index": model_index,
+                    "perms": model_admin.get_model_perms(request),
+                    "name": model_title,
+                    "admin_url": change_url,
+                    "add_url": add_url
                 })
+
+    # Menu may also contain view or url pattern names given as (title, name).
+    for (item_url, item) in menu_order.iteritems():
+        app_index, app_title, item_index, item_title = item
+        try:
+            item_url = reverse(item_url)
+        except NoReverseMatch:
+            continue
+        if app_title not in app_dict:
+            app_dict[app_title] = {
+                "index": app_index,
+                "name": app_title,
+                "models": [],
+            }
+        app_dict[app_title]["models"].append({
+            "index": item_index,
+            "perms": {"custom": True},
+            "name": item_title,
+            "admin_url": item_url,
+        })
 
     app_list = app_dict.values()
     sort = lambda x: x["name"] if x["index"] is None else x["index"]
@@ -445,7 +525,12 @@ def admin_dropdown_menu(context):
     Renders the app list for the admin dropdown menu navigation.
     """
     context["dropdown_menu_app_list"] = admin_app_list(context["request"])
-    context["dropdown_menu_sites"] = list(Site.objects.all())
+    user = context["request"].user
+    if user.is_superuser:
+        sites = Site.objects.all()
+    else:
+        sites = user.sitepermissions.get().sites.all()
+    context["dropdown_menu_sites"] = list(sites)
     context["dropdown_menu_selected_site_id"] = current_site_id()
     return context
 

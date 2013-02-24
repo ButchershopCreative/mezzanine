@@ -4,7 +4,9 @@ Mezzanine
 
 Welcome to the Mezzanine project. To learn more about Mezzanine please
 read the :doc:`overview` which contains a feature list, installation
-guide and other general information.
+guide and other general information. To get an idea of the types of
+sites possible with Mezzanine, have a look at the `gallery of sites
+powered by Mezzanine <http://mezzanine.jupo.org/sites/>`_.
 
 .. note::
     A working knowledge of `Django <https://www.djangoproject.com/>`_
@@ -12,7 +14,8 @@ guide and other general information.
     much. If you're new to Django, you'll need to work through the
     `Django tutorial <https://docs.djangoproject.com/en/dev/intro/tutorial01/>`_
     before being able to understand the concepts used throughout the
-    Mezzanine documentation.
+    Mezzanine documentation. *A mantra for working with Mezzanine:
+    mezz-is-django* - `Ken Bolton <http://bscientific.org/>`_, long-time Mezzanine contributor.
 
 **Front-end developers** can read about how to set up templates for
 specific :doc:`device-handling` such as phones and tablets. Mezzanine
@@ -41,6 +44,9 @@ section on :doc:`user-accounts`, information about Mezzanine's
 which outlines the various settings for configuring Mezzanine. Lastly,
 you can learn about :doc:`blog-importing` into Mezzanine, or just
 browse the auto-generated docs for each of Mezzanine's :doc:`packages`.
+
+Table Of Contents
+=================
 
 .. toctree::
     :maxdepth: 2

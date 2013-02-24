@@ -1,6 +1,5 @@
 
 from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
 from django.db.models import Q
 from django import forms
 from django.utils.translation import ugettext_lazy as _
@@ -8,7 +7,11 @@ from django.utils.translation import ugettext_lazy as _
 from mezzanine.accounts import get_profile_model, get_profile_user_fieldname
 from mezzanine.conf import settings
 from mezzanine.core.forms import Html5Mixin
+from mezzanine.utils.models import get_user_model
 from mezzanine.utils.urls import slugify
+
+
+User = get_user_model()
 
 
 class LoginForm(Html5Mixin, forms.Form):
@@ -24,7 +27,9 @@ class LoginForm(Html5Mixin, forms.Form):
         Authenticate the given username/email and password. If the fields
         are valid, store the authenticated user for returning via save().
         """
-        self._user = authenticate(**self.cleaned_data)
+        username = self.cleaned_data.get("username")
+        password = self.cleaned_data.get("password")
+        self._user = authenticate(username=username, password=password)
         if self._user is None:
             raise forms.ValidationError(
                              _("Invalid username/email and password"))
@@ -104,12 +109,14 @@ class ProfileForm(Html5Mixin, forms.ModelForm):
         We limit it to slugifiable chars since it's used as the slug
         for the user's profile view.
         """
-        username = self.cleaned_data["username"]
-        if username != slugify(username):
+        username = self.cleaned_data.get("username")
+        if username.lower() != slugify(username).lower():
             raise forms.ValidationError(_("Username can only contain letters, "
                                           "numbers, dashes or underscores."))
         try:
-            User.objects.exclude(id=self.instance.id).get(username=username)
+            User.objects.exclude(id=self.instance.id).get(
+                username__iexact=username
+            )
         except User.DoesNotExist:
             return username
         raise forms.ValidationError(_("This username is already registered"))
@@ -119,16 +126,16 @@ class ProfileForm(Html5Mixin, forms.ModelForm):
         Ensure the password fields are equal, and match the minimum
         length defined by ``ACCOUNTS_MIN_PASSWORD_LENGTH``.
         """
-        password1 = self.cleaned_data["password1"]
-        password2 = self.cleaned_data["password2"]
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
 
         if password1:
             errors = []
             if password1 != password2:
                 errors.append(_("Passwords do not match"))
             if len(password1) < settings.ACCOUNTS_MIN_PASSWORD_LENGTH:
-                errors.append(_("Password must be at least %s characters" %
-                              settings.ACCOUNTS_MIN_PASSWORD_LENGTH))
+                errors.append(_("Password must be at least %s characters") %
+                              settings.ACCOUNTS_MIN_PASSWORD_LENGTH)
             if errors:
                 self._errors["password1"] = self.error_class(errors)
         return password2
@@ -137,7 +144,7 @@ class ProfileForm(Html5Mixin, forms.ModelForm):
         """
         Ensure the email address is not already registered.
         """
-        email = self.cleaned_data["email"]
+        email = self.cleaned_data.get("email")
         try:
             User.objects.exclude(id=self.instance.id).get(email=email)
         except User.DoesNotExist:
@@ -149,7 +156,7 @@ class ProfileForm(Html5Mixin, forms.ModelForm):
         Create the new user using their email address as their username.
         """
         user = super(ProfileForm, self).save(*args, **kwargs)
-        password = self.cleaned_data["password1"]
+        password = self.cleaned_data.get("password1")
         if password:
             user.set_password(password)
             user.save()
@@ -157,7 +164,8 @@ class ProfileForm(Html5Mixin, forms.ModelForm):
         # Save profile model.
         if self._has_profile:
             profile = user.get_profile()
-            ProfileFieldsForm(self.cleaned_data, instance=profile).save()
+            profile_fields_form = self.get_profile_fields_form()
+            profile_fields_form(self.data, self.files, instance=profile).save()
 
         if self._signup:
             settings.use_editable()
@@ -169,8 +177,11 @@ class ProfileForm(Html5Mixin, forms.ModelForm):
                                     password=password, is_active=True)
         return user
 
+    def get_profile_fields_form(self):
+        return ProfileFieldsForm
 
-class PasswordResetForm(forms.Form):
+
+class PasswordResetForm(Html5Mixin, forms.Form):
     """
     Validates the user's username or email for sending a login
     token for authenticating to change their password.
@@ -179,7 +190,7 @@ class PasswordResetForm(forms.Form):
     username = forms.CharField(label=_("Username or email address"))
 
     def clean(self):
-        username = self.cleaned_data["username"]
+        username = self.cleaned_data.get("username")
         username_or_email = Q(username=username) | Q(email=username)
         try:
             user = User.objects.get(username_or_email, is_active=True)

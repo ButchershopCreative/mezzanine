@@ -7,6 +7,7 @@ from mezzanine.conf import settings
 from mezzanine.pages import page_processors
 from mezzanine.pages.models import Page
 from mezzanine.pages.views import page as page_view
+from mezzanine.utils.urls import path_to_slug
 
 
 class PageMiddleware(object):
@@ -32,47 +33,15 @@ class PageMiddleware(object):
 
     def process_view(self, request, view_func, view_args, view_kwargs):
 
-        slug = request.path
-        if slug != "/":
-            slug = slug.strip("/")
-        pages_for_user = Page.objects.published(request.user)
-        try:
-            page = pages_for_user.get(slug=slug)
-        except Page.DoesNotExist:
-            page = None
-            if view_func != page_view:
-                # A non-page urlpattern has been matched with no page.
-                # To find the page this is under, we work out way right
-                # from the left of the URL, and bail out as soon as we
-                # don't match a page, keeping the last one found.
-                slug = slug.split("/")
-                for i, part in enumerate(slug):
-                    try:
-                        page = pages_for_user.get(slug="/".join(slug[:i + 1]))
-                    except Page.DoesNotExist:
-                        break
+        slug = path_to_slug(request.path_info)
+        pages = Page.objects.with_ascendants_for_slug(slug,
+                        for_user=request.user, include_login_required=True)
+        if pages:
+            page = pages[0]
         else:
-            if view_func == page_view:
-                # Add the page to the ``extra_context`` arg for the
-                # page view, which is responsible for choosing which
-                # template to use, and raising 404 if there's no page
-                # instance loaded.
-                view_kwargs.setdefault("extra_context", {})
-                view_kwargs["extra_context"]["page"] = page
-
-        # Create the response, and add the page to its template
-        # context. Response could also be a redirect, which we catch
-        # rather than checking for each type of response.
-        response = view_func(request, *view_args, **view_kwargs)
-        try:
-            response.context_data["page"] = page
-        except AttributeError:
-            pass
-
-        # If we don't have a page, bail out, since no more handling
-        # is required.
-        if page is None:
-            return response
+            # If we can't find a page matching this slug or any
+            # of its sub-slugs, skip all further processing.
+            return None
 
         # Handle ``page.login_required``.
         if page.login_required and not request.user.is_authenticated():
@@ -80,21 +49,45 @@ class PageMiddleware(object):
             bits = (settings.LOGIN_URL, REDIRECT_FIELD_NAME, path)
             return redirect("%s?%s=%s" % bits)
 
-        # If we don't have a response that we can add context to,
-        # eg a redirect, just return it.
+        if page.slug == slug and view_func == page_view:
+            # Add the page to the ``extra_context`` arg for the
+            # page view, which is responsible for choosing which
+            # template to use, and raising 404 if there's no page
+            # instance loaded.
+            view_kwargs.setdefault("extra_context", {})
+            view_kwargs["extra_context"]["page"] = page
+
+        # Create the response, and check that we can add context
+        # to it. If not, it's something like a redirect, so we
+        # just return it.
+        response = view_func(request, *view_args, **view_kwargs)
         if not hasattr(response, "context_data"):
             return response
+
+        # Add the page to its template context, and set helper
+        # attributes like ``is_current``.
+        response.context_data["page"] = page
+        try:
+            response.context_data["editable_obj"]
+        except KeyError:
+            response.context_data["editable_obj"] = page
+        response.context_data["_current_page"] = page
+        page.set_helpers(response.context_data)
 
         # Run page processors.
         model_processors = page_processors.processors[page.content_model]
         slug_processors = page_processors.processors["slug:%s" % page.slug]
-        for processor in model_processors + slug_processors:
+        for (processor, exact_page) in slug_processors + model_processors:
+            if exact_page and not page.is_current:
+                continue
             processor_response = processor(request, page)
             if isinstance(processor_response, HttpResponse):
                 return processor_response
             elif processor_response:
                 try:
-                    response.context_data.update(processor_response)
+                    for k in processor_response:
+                        if k not in response.context_data:
+                            response.context_data[k] = processor_response[k]
                 except (TypeError, ValueError):
                     name = "%s.%s" % (processor.__module__, processor.__name__)
                     error = ("The page processor %s returned %s but must "

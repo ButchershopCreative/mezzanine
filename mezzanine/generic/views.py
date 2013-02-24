@@ -12,6 +12,8 @@ from mezzanine.conf import settings
 from mezzanine.generic.fields import RatingField
 from mezzanine.generic.forms import ThreadedCommentForm
 from mezzanine.generic.models import Keyword, Rating
+from mezzanine.utils.cache import add_cache_bypass
+from mezzanine.utils.email import send_mail_template
 from mezzanine.utils.views import render, set_cookie, is_spam
 
 
@@ -79,7 +81,23 @@ def comment(request, template="generic/comments.html"):
         comment.save()
         comment_was_posted.send(sender=comment.__class__, comment=comment,
                                 request=request)
-        response = HttpResponseRedirect(comment.get_absolute_url())
+        # Send notification emails.
+        comment_url = add_cache_bypass(comment.get_absolute_url())
+        notify_emails = filter(None, [addr.strip() for addr in
+                            settings.COMMENTS_NOTIFICATION_EMAILS.split(",")])
+        if notify_emails:
+            subject = _("New comment for: ") + unicode(obj)
+            context = {
+                "comment": comment,
+                "comment_url": comment_url,
+                "request": request,
+                "obj": obj,
+            }
+            send_mail_template(subject, "email/comment_notification",
+                               settings.DEFAULT_FROM_EMAIL, notify_emails,
+                               context, fail_silently=settings.DEBUG)
+
+        response = HttpResponseRedirect(comment_url)
         # Store commenter's details in a cookie for 90 days.
         cookie_expires = 60 * 60 * 24 * 90
         for field in ThreadedCommentForm.cookie_fields:
@@ -101,7 +119,8 @@ def rating(request):
     try:
         model = get_model(*request.POST["content_type"].split(".", 1))
         obj = model.objects.get(id=request.POST["object_pk"])
-        url = obj.get_absolute_url() + "#rating-%s" % obj.id
+        url = obj.get_absolute_url()
+        url = add_cache_bypass(url.split("#")[0]) + "#rating-%s" % obj.id
     except (KeyError, TypeError, AttributeError, ObjectDoesNotExist):
         # Something was missing from the post so abort.
         return HttpResponseRedirect("/")
@@ -121,9 +140,18 @@ def rating(request):
                                request.POST["object_pk"])
     if rating_string in ratings:
         # Already rated so abort.
-        return HttpResponseRedirect(url)
+        if request.is_ajax():
+            response = HttpResponse("err")
+        else:
+            response = HttpResponseRedirect(url)
+        return response
     rating_manager.add(Rating(value=rating_value))
-    response = HttpResponseRedirect(url)
+    if request.is_ajax():
+        # Reload the object and return the new rating.
+        obj = model.objects.get(id=request.POST["object_pk"])
+        response = HttpResponse(str(obj.rating_average))
+    else:
+        response = HttpResponseRedirect(url)
     ratings.append(rating_string)
     expiry = 60 * 60 * 24 * 365
     set_cookie(response, "mezzanine-rating", ",".join(ratings), expiry)

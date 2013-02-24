@@ -4,8 +4,6 @@ all the various Mezzanine apps, third-party apps like Grappelli and
 filebrowser.
 """
 
-from urlparse import urlsplit
-
 from django.conf.urls.defaults import patterns, include
 from django.contrib import admin
 from django.contrib.admin.sites import NotRegistered
@@ -32,6 +30,15 @@ for model in settings.ADMIN_REMOVAL:
 
 urlpatterns = []
 
+# JavaScript localization feature
+js_info_dict = {
+    'domain': 'django',
+}
+
+urlpatterns += patterns('django.views.i18n',
+    (r'^jsi18n/(?P<packages>\S+?)/$', 'javascript_catalog', js_info_dict),
+)
+
 # Django's sitemap app.
 if "django.contrib.sitemaps" in settings.INSTALLED_APPS:
     sitemaps = {"sitemaps": {"all": DisplayableSitemap}}
@@ -53,13 +60,6 @@ if getattr(settings, "PACKAGE_NAME_FILEBROWSER") in settings.INSTALLED_APPS:
                                         settings.PACKAGE_NAME_FILEBROWSER)),
     )
 
-# Grappelli admin skin.
-_pattern = urlsplit(settings.ADMIN_MEDIA_PREFIX).path.strip("/").split("/")[0]
-if getattr(settings, "PACKAGE_NAME_GRAPPELLI") in settings.INSTALLED_APPS:
-    urlpatterns += patterns("",
-        ("^grappelli/", include("%s.urls" % settings.PACKAGE_NAME_GRAPPELLI)),
-    )
-
 # Miscellanous Mezzanine patterns.
 urlpatterns += patterns("",
     ("^", include("mezzanine.core.urls")),
@@ -67,14 +67,13 @@ urlpatterns += patterns("",
 )
 
 # Mezzanine's Blog app.
-BLOG_SLUG = settings.BLOG_SLUG
 blog_installed = "mezzanine.blog" in settings.INSTALLED_APPS
 if blog_installed:
-    if BLOG_SLUG:
-        BLOG_SLUG += "/"
-    urlpatterns += patterns("",
+    BLOG_SLUG = settings.BLOG_SLUG.rstrip("/")
+    blog_patterns = patterns("",
         ("^%s" % BLOG_SLUG, include("mezzanine.blog.urls")),
     )
+    urlpatterns += blog_patterns
 
 # Mezzanine's Accounts app
 _old_accounts_enabled = getattr(settings, "ACCOUNTS_ENABLED", False)
@@ -94,11 +93,13 @@ if _old_accounts_enabled or "mezzanine.accounts" in settings.INSTALLED_APPS:
 PAGES_SLUG = ""
 if "mezzanine.pages" in settings.INSTALLED_APPS:
     # No BLOG_SLUG means catch-all patterns belong to the blog,
-    # so give pages their own prefix.
-    if not BLOG_SLUG and blog_installed:
-        PAGES_SLUG = "pages/"
-        urlpatterns[-1:1] = patterns("",
-            ("^%s" % PAGES_SLUG, include("mezzanine.pages.urls")),
+    # so give pages their own prefix and inject them before the
+    # blog urlpatterns.
+    if blog_installed and not BLOG_SLUG:
+        PAGES_SLUG = getattr(settings, "PAGES_SLUG", "pages").strip("/") + "/"
+        blog_patterns_start = urlpatterns.index(blog_patterns[0])
+        urlpatterns[blog_patterns_start:len(blog_patterns)] = patterns("",
+            ("^%s" % unicode(PAGES_SLUG), include("mezzanine.pages.urls")),
         )
     else:
         urlpatterns += patterns("",

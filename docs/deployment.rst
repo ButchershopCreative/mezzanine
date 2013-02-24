@@ -31,6 +31,19 @@ The deployed stack consists of the following components:
   * `memcached <http://memcached.org>`_ - in-memory caching server
   * `supervisord <http://supervisord.org>`_ - process control and monitor
 
+.. note::
+
+  None of the items listed above are required for deploying Mezzanine,
+  they're simply the components that have been chosen for use in the
+  bundled ``fabfile.py``. Alternatives such as `Apache
+  <http://httpd.apache.org/>`_ and `MySQL <http://www.mysql.com/>`_
+  will work fine, but you'll need to take care of setting these up
+  and deploying yourself. Consult the Django documentation for more
+  information on using different `web
+  <https://docs.djangoproject.com/en/dev/howto/deployment/>`_ and
+  `database <https://docs.djangoproject.com/en/dev/ref/databases/>`_
+  servers.
+
 Configuration
 -------------
 
@@ -58,16 +71,14 @@ Commands
 
 Here's the list of commands provided in a Mezzanine project's
 ``fabfile.py``. Consult the `Fabric documentation <http://fabfile.org>`_
-for more information on working with these.
+for more information on working with these:
 
-.. automodule:: mezzanine.project_template.fabfile
-   :members:
+.. include:: fabfile.rst
 
-
-Multiplie Sites and Multi-Tenancy
+Multiple Sites and Multi-Tenancy
 =================================
 
-Mezzanine makes use of of Django's ``sites`` app to support multiple
+Mezzanine makes use of Django's ``sites`` app to support multiple
 sites in a single project. This functionality is always "turned on" in
 Mezzanine: a single ``Site`` record always exists, and is referenced
 when retrieving site related data, which most content in Mezzanine falls
@@ -90,7 +101,7 @@ Here's the list of checks in the pipeline, in order:
 
   * The session variable ``site_id``. This allows a project to include
     features where a user's session is explicitly associated with a site.
-    Mezzanine uses this in it's admin to allow admin users to switch
+    Mezzanine uses this in its admin to allow admin users to switch
     between sites to manage, while accessing the admin on a single domain.
   * The domain matching the host of the current request, as described
     above.
@@ -99,20 +110,20 @@ Here's the list of checks in the pipeline, in order:
     request, such as management commands. Mezzanine includes a custom
     ``manage.py`` which will check for (and remove) a ``--site=ID``
     argument.
-  * Finally Mezzanine will fall back to the ``SITE_ID`` setting if none
+  * Finally, Mezzanine will fall back to the ``SITE_ID`` setting if none
     of the above checks can occur.
 
 Twitter Feeds
 =============
 
 If Twitter feeds are implemented in your templates, a cron job is
-required that will run the following management command. For example
+required that will run the following management command. For example,
 if we want the tweets to be updated every 10 minutes::
 
     */10 * * * * python path/to/your/site/manage.py poll_twitter
 
 This ensures that the data is always available in the site's database
 when accessed, and allows you to control how often the Twitter API is
-queried. Note that the fabric script described earlier includes
+queried. Note that the Fabric script described earlier includes
 features for deploying templates for cron jobs, which includes the
-job for polling twitter by default.
+job for polling Twitter by default.

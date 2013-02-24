@@ -8,74 +8,108 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Mezzanine\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-05-26 12:27-0430\n"
-"PO-Revision-Date: 2011-11-18 19:36+0000\n"
-"Last-Translator: Eraser <eraser@eraser.ee>\n"
-"Language-Team: Estonian (http://www.transifex.net/projects/p/mezzanine/team/"
-"et/)\n"
+"POT-Creation-Date: 2013-01-11 19:57-0500\n"
+"PO-Revision-Date: 2012-08-26 13:23+0000\n"
+"Last-Translator: Sebastián Ramírez Magrí <sebasmagri@gmail.com>\n"
+"Language-Team: Estonian (http://www.transifex.com/projects/p/mezzanine/"
+"language/et/)\n"
 "Language: et\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: models.py:17
-msgid "Show in navigation"
-msgstr "Näita menüüs"
+#: defaults.py:20
+msgid ""
+"A sequence of templates used by the ``page_menu`` template tag. Each item in "
+"the sequence is a three item sequence, containing a unique ID for the "
+"template, a label for the template, and the template path. These templates "
+"are then available for selection when editing which menus a page should "
+"appear in. Note that if a menu template is used that doesn't appear in this "
+"setting, all pages will appear in it."
+msgstr ""
 
-#: models.py:18
-msgid "Show in footer"
-msgstr "Näita jaluses"
+#: defaults.py:29
+msgid "Top navigation bar"
+msgstr ""
 
-#: models.py:21
+#: defaults.py:30
+msgid "Left-hand tree"
+msgstr ""
+
+#: defaults.py:31
+msgid "Footer"
+msgstr ""
+
+#: defaults.py:37
+msgid ""
+"A sequence of IDs from the ``PAGE_MENU_TEMPLATES`` setting that defines the "
+"default menu templates selected when creating new pages. By default all menu "
+"templates are selected. Set this setting to an empty sequence to have no "
+"templates selected by default."
+msgstr ""
+
+#: defaults.py:48
+msgid ""
+"If ``True``, pages with ``login_required`` checked will still be listed in "
+"menus and search results, for unauthenticated users. Regardless of this "
+"setting, when an unauthenticated user accesses a page with "
+"``login_required`` checked, they'll be redirected to the login page."
+msgstr ""
+
+#: models.py:33
+msgid "Show in menus"
+msgstr ""
+
+#: models.py:36
 msgid "Login required"
 msgstr "Vajalik on sisselogimine"
 
-#: models.py:22
+#: models.py:37
 msgid "If checked, only logged in users can view this page"
 msgstr ""
 "Kui see valik on märgitud, siis saavad seda lehekülge vaadata ainult "
 "sisseloginud kasutajad"
 
-#: models.py:25
+#: models.py:40
 msgid "Page"
 msgstr "Lehekõlg"
 
-#: models.py:26
+#: models.py:41
 msgid "Pages"
 msgstr "Leheküljed"
 
-#: models.py:139
+#: models.py:256
 msgid "Rich text page"
 msgstr ""
 
-#: models.py:140
+#: models.py:257
 msgid "Rich text pages"
 msgstr ""
 
-#: models.py:150
+#: models.py:267
 msgid "Link"
-msgstr ""
+msgstr "Link"
 
-#: models.py:151
+#: models.py:268
 msgid "Links"
 msgstr ""
 
-#: templates/admin/pages/page/change_list.html:24
-#: templates/pages/menus/admin.html:32
+#: templates/admin/pages/page/change_list.html:25
+#: templates/pages/menus/admin.html:31
 msgid "Add"
 msgstr "Lisa"
 
 #: templates/pages/menus/breadcrumb.html:4
 #: templates/pages/menus/breadcrumb.html:10
 #: templates/pages/menus/dropdown.html:10
-#: templates/pages/menus/footer_tree.html:10
-#: templates/pages/menus/mobile.html:9 templates/pages/menus/primary.html:9
-#: templates/pages/menus/tree.html:9
+#: templates/pages/menus/footer_tree.html:11
+#: templates/pages/menus/mobile.html:10 templates/pages/menus/primary.html:9
+#: templates/pages/menus/tree.html:10
 msgid "Home"
 msgstr "Avaleht"
 
-#: templatetags/pages_tags.py:146
+#: templatetags/pages_tags.py:190
 msgid ""
 "An error occured with the following class. Does it subclass Page directly?"
 msgstr ""

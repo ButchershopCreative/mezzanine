@@ -7,6 +7,13 @@ Minimum length for passwords
 
 Default: ``6``
 
+``ACCOUNTS_PROFILE_FORM_CLASS``
+-------------------------------
+
+Dotted package path and class name of profile form to use for users signing up and updating their profile, when ``mezzanine.accounts`` is installed.
+
+Default: ``'mezzanine.accounts.forms.ProfileForm'``
+
 ``ACCOUNTS_PROFILE_FORM_EXCLUDE_FIELDS``
 ----------------------------------------
 
@@ -41,6 +48,13 @@ Default: ``((u'Content', ('pages.Page', 'blog.BlogPost', 'generic.ThreadedCommen
 Unregister these models from the admin.
 
 Default: ``()``
+
+``ADMIN_THUMB_SIZE``
+--------------------
+
+Size of thumbnail previews for image fields in the admin interface.
+
+Default: ``'24x24'``
 
 ``AKISMET_API_KEY``
 -------------------
@@ -133,6 +147,13 @@ Shortname for the `http://disqus.com <http://disqus.com>`_ comments service.
 
 Default: ``''``
 
+``COMMENTS_NOTIFICATION_EMAILS``
+--------------------------------
+
+A comma separated list of email addresses that will receive an email notification each time a new comment is posted on the site.
+
+Default: ``''``
+
 ``COMMENTS_NUM_LATEST``
 -----------------------
 
@@ -153,6 +174,20 @@ Default: ``True``
 If ``True``, comments that have ``is_public`` unchecked will still be displayed, but replaced with a ``waiting to be approved`` message.
 
 Default: ``True``
+
+``COMMENTS_USE_RATINGS``
+------------------------
+
+If ``True``, comments can be rated.
+
+Default: ``True``
+
+``COMMENT_FILTER``
+------------------
+
+Dotted path to the function to call on a comment's value before it is rendered to the template.
+
+Default: ``None``
 
 ``DASHBOARD_TAGS``
 ------------------
@@ -195,6 +230,13 @@ Default: ``','``
 If ``True``, emails sent to extra recipients for form submissions won't be sent from an address taken from one of the form's email fields.
 
 Default: ``False``
+
+``FORMS_EXTRA_FIELDS``
+----------------------
+
+Extra field types for the forms app. Should contain a sequence of three-item sequences, each containing the ID, dotted import path for the field class, and field name, for each custom field type. The ID is simply a numeric constant for the field, but cannot be a value already used, so choose a high number such as 100 or greater to avoid conflicts.
+
+Default: ``()``
 
 ``FORMS_FIELD_MAX_LENGTH``
 --------------------------
@@ -252,26 +294,47 @@ Max number of paging links to display when paginating.
 
 Default: ``10``
 
-``PAGES_MENU_SHOW_ALL``
+``MEDIA_LIBRARY_PER_SITE``
+--------------------------
+
+If ``True``, each site will use its own directory within the filebrowser media library.
+
+Default: ``False``
+
+``OWNABLE_MODELS_ALL_EDITABLE``
+-------------------------------
+
+Models that subclass ``Ownable`` and use the ``OwnableAdmin`` have their admin change-list records filtered down to records owned by the current user. This setting contains a sequence of models in the format ``app_label.object_name``, that when subclassing ``Ownable``, will still show all records in the admin change-list interface, regardless of the current user.
+
+Default: ``()``
+
+``PAGES_PUBLISHED_INCLUDE_LOGIN_REQUIRED``
+------------------------------------------
+
+If ``True``, pages with ``login_required`` checked will still be listed in menus and search results, for unauthenticated users. Regardless of this setting, when an unauthenticated user accesses a page with ``login_required`` checked, they'll be redirected to the login page.
+
+Default: ``False``
+
+``PAGE_MENU_TEMPLATES``
 -----------------------
 
-If ``True``, the pages menu will show all levels of navigation, otherwise child pages are only shown when viewing the parent page.
+A sequence of templates used by the ``page_menu`` template tag. Each item in the sequence is a three item sequence, containing a unique ID for the template, a label for the template, and the template path. These templates are then available for selection when editing which menus a page should appear in. Note that if a menu template is used that doesn't appear in this setting, all pages will appear in it.
 
-Default: ``True``
+Default: ``((1, u'Top navigation bar', 'pages/menus/dropdown.html'), (2, u'Left-hand tree', 'pages/menus/tree.html'), (3, u'Footer', 'pages/menus/footer.html'))``
 
-``RATINGS_MAX``
----------------
+``PAGE_MENU_TEMPLATES_DEFAULT``
+-------------------------------
 
-Max value for a rating.
+A sequence of IDs from the ``PAGE_MENU_TEMPLATES`` setting that defines the default menu templates selected when creating new pages. By default all menu templates are selected. Set this setting to an empty sequence to have no templates selected by default.
 
-Default: ``5``
+Default: ``None``
 
-``RATINGS_MIN``
----------------
+``RATINGS_RANGE``
+-----------------
 
-Min value for a rating.
+A sequence of integers that are valid ratings.
 
-Default: ``1``
+Default: ``[1, 2, 3, 4, 5]``
 
 ``RICHTEXT_ALLOWED_ATTRIBUTES``
 -------------------------------
@@ -279,6 +342,13 @@ Default: ``1``
 List of HTML attributes that won't be stripped from ``RichTextField`` instances.
 
 Default: ``('abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alt', 'axis', 'border', 'cellpadding', 'cellspacing', 'char', 'charoff', 'charset', 'checked', 'cite', 'class', 'clear', 'cols', 'colspan', 'color', 'compact', 'coords', 'datetime', 'dir', 'disabled', 'enctype', 'for', 'frame', 'headers', 'height', 'href', 'hreflang', 'hspace', 'id', 'ismap', 'label', 'lang', 'longdesc', 'maxlength', 'media', 'method', 'multiple', 'name', 'nohref', 'noshade', 'nowrap', 'prompt', 'readonly', 'rel', 'rev', 'rows', 'rowspan', 'rules', 'scope', 'selected', 'shape', 'size', 'span', 'src', 'start', 'style', 'summary', 'tabindex', 'target', 'title', 'type', 'usemap', 'valign', 'value', 'vspace', 'width', 'xml:lang')``
+
+``RICHTEXT_ALLOWED_STYLES``
+---------------------------
+
+List of inline CSS styles that won't be stripped from ``RichTextField`` instances.
+
+Default: ``()``
 
 ``RICHTEXT_ALLOWED_TAGS``
 -------------------------
@@ -317,12 +387,26 @@ Dotted package path and class name of the widget to use for the ``RichTextField`
 
 Default: ``'mezzanine.core.forms.TinyMceWidget'``
 
+``SEARCH_MODEL_CHOICES``
+------------------------
+
+Sequence of models that will be provided by default as choices in the search form. Each model should be in the format ``app_label.model_name``. Only models that subclass ``mezzanine.core.models.Displayable`` should be used.
+
+Default: ``('pages.Page', 'blog.BlogPost')``
+
 ``SEARCH_PER_PAGE``
 -------------------
 
 Number of results shown in the search results page.
 
 Default: ``10``
+
+``SITE_PREFIX``
+---------------
+
+A URL prefix for mounting all of Mezzanine's urlpatterns under. When using this, you'll also need to manually apply it to your project's root ``urls.py`` module. The root ``urls.py`` module provided by Mezzanine's ``mezzanine-project`` command contains an example of this towards its end.
+
+Default: ``''``
 
 ``SITE_TAGLINE``
 ----------------
@@ -345,12 +429,26 @@ Dotted Python path to the callable for converting strings into URL slugs. Defaul
 
 Default: ``'mezzanine.utils.urls.slugify_unicode'``
 
+``SPAM_FILTERS``
+----------------
+
+Sequence of dotted Python paths to callable functions used for checking posted content (such as forms or comments) is spam. Each function should accept three arguments: the request object, the form object, and the URL that was posted from. Defaults to ``mezzanine.utils.views.is_spam_akismet`` which will use the `http://akismet.com <http://akismet.com>`_ spam filtering service when the ``AKISMET_API_KEY`` setting is configured.
+
+Default: ``('mezzanine.utils.views.is_spam_akismet',)``
+
 ``SSL_ENABLED``
 ---------------
 
 If ``True``, users will be automatically redirected to HTTPS for the URLs specified by the ``SSL_FORCE_URL_PREFIXES`` setting.
 
 Default: ``False``
+
+``SSL_FORCED_PREFIXES_ONLY``
+----------------------------
+
+If ``True``, only URLs specified by the ``SSL_FORCE_URL_PREFIXES`` setting will be accessible over SSL, and all other URLs will be redirected back to HTTP if accessed over HTTPS.
+
+Default: ``True``
 
 ``SSL_FORCE_HOST``
 ------------------
@@ -385,7 +483,7 @@ Default: ``4``
 
 Sequence of setting names available within templates.
 
-Default: ``('ACCOUNTS_VERIFICATION_REQUIRED', 'ADMIN_MEDIA_PREFIX', 'BLOG_BITLY_USER', 'BLOG_BITLY_KEY', 'COMMENTS_DISQUS_SHORTNAME', 'COMMENTS_NUM_LATEST', 'COMMENTS_DISQUS_API_PUBLIC_KEY', 'COMMENTS_DISQUS_API_SECRET_KEY', 'DEV_SERVER', 'FORMS_USE_HTML5', 'GRAPPELLI_INSTALLED', 'GOOGLE_ANALYTICS_ID', 'JQUERY_FILENAME', 'LOGIN_URL', 'LOGOUT_URL', 'PAGES_MENU_SHOW_ALL', 'SITE_TITLE', 'SITE_TAGLINE', 'RATINGS_MAX')``
+Default: ``('ACCOUNTS_VERIFICATION_REQUIRED', 'ADMIN_MEDIA_PREFIX', 'BLOG_BITLY_USER', 'BLOG_BITLY_KEY', 'BLOG_USE_FEATURED_IMAGE', 'COMMENTS_DISQUS_SHORTNAME', 'COMMENTS_NUM_LATEST', 'COMMENTS_DISQUS_API_PUBLIC_KEY', 'COMMENTS_DISQUS_API_SECRET_KEY', 'COMMENTS_USE_RATINGS', 'DEV_SERVER', 'FORMS_USE_HTML5', 'GRAPPELLI_INSTALLED', 'GOOGLE_ANALYTICS_ID', 'JQUERY_FILENAME', 'LOGIN_URL', 'LOGOUT_URL', 'SITE_TITLE', 'SITE_TAGLINE')``
 
 ``THUMBNAILS_DIR_NAME``
 -----------------------
@@ -400,6 +498,44 @@ Default: ``'.thumbnails'``
 URL for the JavaScript file (relative to ``STATIC_URL``) that handles configuring TinyMCE when the default ``RICHTEXT_WIDGET_CLASS`` is used.
 
 Default: ``'mezzanine/js/tinymce_setup.js'``
+
+``TWITTER_DEFAULT_NUM_TWEETS``
+------------------------------
+
+Number of tweets to display in the default Twitter feed.
+
+Default: ``3``
+
+``TWITTER_DEFAULT_QUERY``
+-------------------------
+
+Twitter query to use for the default query type.
+
+Default: ``'django mezzanine'``
+
+``TWITTER_DEFAULT_QUERY_TYPE``
+------------------------------
+
+Type of query that will be used to retrieve tweets for the default Twitter feed.
+
+Choices: User: ``user``, List: ``list``, Search: ``search``
+
+
+Default: ``'search'``
+
+``UPLOAD_TO_HANDLERS``
+----------------------
+
+Dict mapping file field names in the format ``app_label.model_name.field_name`` to the Python dotted path to function names that will be used for the file field's ``upload_to`` argument.
+
+Default: ``{}``
+
+``USE_REVERSION``
+-----------------
+
+If ``True`` and ``django-reversion`` is installed in ``INSTALLED_APP``, reversion's admin class is injected into all of the admin classes that are based upon ``DisplayableAdmin``, such as blog admin and all of the page admins.
+
+Default: ``False``
 
 ``USE_SOUTH``
 -------------

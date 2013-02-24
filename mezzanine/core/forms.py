@@ -20,6 +20,10 @@ class Html5Mixin(object):
     def __init__(self, *args, **kwargs):
         super(Html5Mixin, self).__init__(*args, **kwargs)
         if hasattr(self, "fields"):
+            # Autofocus first field
+            first_field = self.fields.itervalues().next()
+            first_field.widget.attrs["autofocus"] = ""
+
             for name, field in self.fields.items():
                 if settings.FORMS_USE_HTML5:
                     if isinstance(field, forms.EmailField):
@@ -66,7 +70,7 @@ class DynamicInlineAdminForm(forms.ModelForm):
     """
 
     class Media:
-        js = ("mezzanine/js/jquery-ui-1.8.14.custom.min.js",
+        js = ("mezzanine/js/jquery-ui-1.9.1.custom.min.js",
               "mezzanine/js/admin/dynamic_inline.js",)
 
     def __init__(self, *args, **kwargs):
@@ -84,6 +88,15 @@ class SplitSelectDateTimeWidget(forms.SplitDateTimeWidget):
         date_widget = SelectDateWidget(attrs=attrs)
         time_widget = forms.TimeInput(attrs=attrs, format=time_format)
         forms.MultiWidget.__init__(self, (date_widget, time_widget), attrs)
+
+
+class CheckboxSelectMultiple(forms.CheckboxSelectMultiple):
+    """
+    Wraps render with a CSS class for styling.
+    """
+    def render(self, *args, **kwargs):
+        rendered = super(CheckboxSelectMultiple, self).render(*args, **kwargs)
+        return mark_safe("<span class='multicheckbox'>%s</span>" % rendered)
 
 
 def get_edit_form(obj, field_names, data=None, files=None):
