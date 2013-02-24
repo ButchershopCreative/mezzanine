@@ -49,7 +49,11 @@ class PageMiddleware(object):
             bits = (settings.LOGIN_URL, REDIRECT_FIELD_NAME, path)
             return redirect("%s?%s=%s" % bits)
 
-        if page.slug == slug and view_func == page_view:
+        # Allow sub pages in Blog
+        if (page.slug == slug and page.slug != settings.BLOG_SLUG and
+            isinstance(page, Page)):
+            # Force view_func to be the page view
+            view_func = page_view
             # Add the page to the ``extra_context`` arg for the
             # page view, which is responsible for choosing which
             # template to use, and raising 404 if there's no page
